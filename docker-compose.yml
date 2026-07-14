@@ -1,0 +1,41 @@
+services:
+  evolution-db:
+    image: postgres:15-alpine
+    container_name: evolution_db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=evolution_user
+      - POSTGRES_PASSWORD=SecretLocalPassword123
+      - POSTGRES_DB=evolution_whatsapp
+    volumes:
+      - ./evolution_db_data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+  evolution-api:
+    image: evoapicloud/evolution-api:latest
+    container_name: evolution_api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - evolution-db
+    environment:
+      - SERVER_URL=http://localhost:8080
+      
+      # --- THE CRITICAL AUTHENTICATION ENABLER FIXES ---
+      - AUTHENTICATION_TYPE=apikey
+      - AUTHENTICATION_API_KEY=MySecurePythonApiKey123
+      
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgresql://evolution_user:SecretLocalPassword123@evolution_db:5432/evolution_whatsapp?schema=public
+      - CACHE_PROVIDER=local
+      - CACHE_REDIS_ENABLED=false
+    volumes:
+      - ./evolution_instances:/evolution/instances
+    deploy:
+      resources:
+        limits:
+          memory: 256M
