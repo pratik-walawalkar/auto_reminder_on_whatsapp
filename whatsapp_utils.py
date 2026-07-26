@@ -2,14 +2,22 @@ import os
 import time
 import random
 import requests
+import psycopg2
+
+
+# Dynamically resolve root project paths regardless of execution sub-folder contexts
+UTILS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # We will populate these variables dynamically inside initialize_whatsapp()
 API_BASE_URL = None
 INSTANCE_NAME = None
 HEADERS = None
 
-def load_env_file(dotenv_path=".env"):
+def load_env_file(dotenv_path=None):
     """Loads environment configuration properties directly into script runtime."""
+
+    if dotenv_path is None:
+        dotenv_path = os.path.join(UTILS_DIR, ".env")
     if os.path.exists(dotenv_path):
         with open(dotenv_path) as f:
             for line in f:
@@ -17,6 +25,17 @@ def load_env_file(dotenv_path=".env"):
                 if line and not line.startswith("#") and "=" in line:
                     key, value = line.split("=", 1)
                     os.environ[key.strip()] = value.strip()
+
+# --- NEW: UNIFIED DATA ACCESS ENGINE LAYER ---
+def get_db_connection():
+    """Establishes an active transaction node pipeline to your isolated PostgreSQL engine."""
+    return psycopg2.connect(
+        host="localhost",
+        port=5432,  # Uses your high-tier port bypass
+        user="evolution_user",
+        password="SecretLocalPassword123",
+        database="evolution_whatsapp"
+    )
 
 def initialize_whatsapp():
     """Validates connectivity to the background Evolution API instance with automatic retry logic."""
@@ -35,7 +54,7 @@ def initialize_whatsapp():
     
     print(f"🤖 Initializing API pipeline connection to instance: {INSTANCE_NAME}...")
     
-    # --- FIX: RETRY LOOP WITH INCREASED TIMEOUT BUFFER ---
+    # --- RETRY LOOP WITH INCREASED TIMEOUT BUFFER ---
     check_url = f"{API_BASE_URL}/instance/connectionState/{INSTANCE_NAME}"
     max_attempts = 3
     
@@ -95,11 +114,14 @@ def send_whatsapp_message(chat_id, text_content):
 
         # --- TRANSIT ENGINE: STEP 5: DELIVER MESSAGE PACKET PAYLOAD ---
         send_url = f"{API_BASE_URL}/message/sendText/{INSTANCE_NAME}"
+
+        # This strips out ` characters which break the container's JSON object serializer
+        sanitized_text = str(text_content).strip().replace("`", "")
         
-        # --- FIX: UPDATED PAYLOAD PROPERTIES TO MATCH V2 STRUCTURAL SCHEMAS ---
+        # --- UPDATED PAYLOAD PROPERTIES TO MATCH V2 STRUCTURAL SCHEMAS ---
         payload = {
             "number": target_id,
-            "text": str(text_content).strip(), # Evolution V2 expects 'text' directly on the root level
+            "text": sanitized_text, # Evolution V2 expects 'text' directly on the root level
             "options": {
                 "delay": 0,  
                 "presence": "composing"

@@ -1,94 +1,98 @@
+# main.py (Updated to execute full sync pipeline logic via bill_scanner)
 import os
 import sys
 import datetime
-from typing import Optional, List
+from typing import Optional
 import psycopg2
 from pydantic import BaseModel, Field
-from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Query, BackgroundTasks, UploadFile, File, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 import pandas as pd
 import io
+import hashlib
+import shutil
+import json
+import uvicorn
 
 # --- ROOT PATH RESOLUTION LAYER ---
-ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
 if ROOT_DIR not in sys.path:
     sys.path.append(ROOT_DIR)
 os.chdir(ROOT_DIR)
 
-from whatsapp_utils import get_db_connection
-from utility_billing.bill_scanner import main_sync_pipeline
+import whatsapp_utils
+from utility_billing import bill_scanner
 
-# Initialize FastAPI App Core Engine Context
+MATRIX_FILE = os.path.join(ROOT_DIR, "matrix_routing.json")
+
 app = FastAPI(
     title="Headless Automation Billing Warehouse API",
-    description= "Production-grade data orchestration backend for local utility ledgers.",
-    version="1.0.0"
+    description="Production-grade data orchestration backend for local utility ledgers.",
+    version="2.0.1"
 )
 
-# Enforce Cross-Origin Resource Sharing (CORS) Security Policies
-# Permits your upcoming local Next.js frontend (typically port 3000) to communicate natively
-# --- HARDENED BACKEND CORS FRAMEWORK ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins="http://(localhost|127\.0\.0\.1|100\.\d+\.\d+\.\d+|.*\.tailnet-.*\.ts\.net):3000",
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "DELETE", "OPTIONS"], # Blocks unused HTTP verbs like DELETE/PUT from outside execution loops
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
+def get_db_connection():
+    return psycopg2.connect(
+        host=os.getenv("DB_HOST", "localhost"),
+        database="evolution_whatsapp",
+        user="evolution_user",
+        password="SecretLocalPassword123",
+        port=os.getenv("DB_PORT", "5432")
+    )
 
-# --- PYDANTIC SCHEMA DEFINITIONS FOR DATA INTEGRITY ---
 class BillEntryForm(BaseModel):
-    provider_name: str = Field(..., example="Adani Electricity")
-    bill_amount: float = Field(..., gt=0, example=2450.50)
+    provider_name: str = Field(..., example="Airtel WiFi")
+    bill_amount: float = Field(..., gt=0)
     tax_amount: Optional[float] = Field(0.0, ge=0)
-    due_date: str = Field(..., example="2026-08-07")
-    billing_period_start: str = Field(..., example="2026-06-01")
-    billing_period_end: str = Field(..., example="2026-06-30")
-    units_consumed: Optional[float] = Field(0.0, ge=0, description="kWh, Units, or GB counters")
+    billing_month: str = Field(..., example="2026-07")
+    billing_period_start: str
+    billing_period_end: str
+    due_date: str
+    units_consumed: Optional[float] = Field(0.0, ge=0)
 
-# --- ENDPOINT 1 FIXED: HEALTH-AWARE METRICS PIPELINE CONTROLLER ---
-@app.get("/api/v1/dashboard/metrics", summary="Fetches consolidated KPI cards metrics metadata arrays.")
+class StagingApprovalForm(BaseModel):
+    provider_name: str
+    utility_type: str
+    bill_amount: float
+    units_consumed: float
+    due_date: str
+    billing_period_start: str
+    billing_period_end: str
+
+@app.get("/api/v1/metrics", summary="Fetches consolidated KPI cards metrics metadata arrays.")
 async def get_dashboard_summary_cards():
-    """Computes total outstanding expenses, total paid this month, and historical spending velocity benchmarks."""
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        
         current_year = datetime.datetime.now().year
         current_month = datetime.datetime.now().month
         
-        # 1. Calculate Outstanding Unpaid Liabilities Balance
         cur.execute("SELECT COALESCE(SUM(bill_amount), 0.00) FROM utility_billing_history WHERE is_paid_status = FALSE;")
         unpaid_balance = float(cur.fetchone()[0])
         
-        # 2. Calculate Cleared Expenses Paid This Calendar Month
         cur.execute("""
             SELECT COALESCE(SUM(bill_amount), 0.00) FROM utility_billing_history 
             WHERE is_paid_status = TRUE AND billing_year = %s AND billing_month = %s;
-        """, (current_year, current_month))
+        """, (current_year, str(current_month)))
         paid_this_month = float(cur.fetchone()[0])
         
-        # 3. Compile Provider Aggregates Trend Breakdown Array
-        cur.execute("""
-            SELECT provider_name, COALESCE(SUM(bill_amount), 0.00), COUNT(id) 
-            FROM utility_billing_history GROUP BY provider_name;
-        """)
+        cur.execute("SELECT provider_name, COALESCE(SUM(bill_amount), 0.00), COUNT(id) FROM utility_billing_history GROUP BY provider_name;")
         provider_rows = cur.fetchall()
-        
-        # --- FIX 1: ACCESSED VIA EXPLICIT ARRAY POSITIONAL INTEGER INDEXING ---
-        provider_breakdown = [
-            {"provider": r[0], "total_spent": float(r[1]), "total_bills_logged": int(r[2])} for r in provider_rows
-        ]
+        provider_breakdown = [{"provider": r[0], "total_spent": float(r[1]), "total_bills_logged": int(r[2])} for r in provider_rows]
         
         cur.close()
         conn.close()
-        
-        # --- FIX 2: INJECT EXPLICIT DATABASE HEALTH STATUS CODES PACKETS ---
         return {
-            "status": "success",
-            "database_offline": False,
+            "status": "success", "database_offline": False,
             "timestamp": datetime.datetime.utcnow().isoformat(),
             "data": {
                 "total_outstanding_payable": unpaid_balance,
@@ -97,48 +101,23 @@ async def get_dashboard_summary_cards():
             }
         }
     except Exception as e:
-        print(f"❌ PostgreSQL Connection Exception Catch inside Metrics Endpoint: {e}")
-        # Send an explicit safe rollback connection packet instead of throwing a generic 500 crash error
         return {
-            "status": "error",
-            "database_offline": True,
+            "status": "error", "database_offline": True,
             "timestamp": datetime.datetime.utcnow().isoformat(),
-            "data": {
-                "total_outstanding_payable": 0.00,
-                "total_cleared_current_month": 0.00,
-                "provider_historical_aggregates": []
-            }
+            "data": {"total_outstanding_payable": 0.00, "total_cleared_current_month": 0.00, "provider_historical_aggregates": []}
         }
 
-    
-# --- ENDPOINT 2: TIME-SERIES TIME-LINE TRANSACTIONS LEDGER ---
 @app.get("/api/v1/bills/history", summary="Retrieves continuous timeline tabular history database logs.")
-async def get_billing_history_ledger(provider: Optional[str] = Query(None, description="Filter rows by explicit provider profile")):
+async def get_billing_history_ledger(provider: Optional[str] = Query(None)):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        
-        # --- FIX 1: RESTORED MISSING payment_success_date COLUMN TO PREVENT VALUE TRUNCATIONS ---
         if provider:
-            cur.execute("""
-                SELECT id, msg_id, provider_name, bill_amount, tax_amount, due_date, 
-                       billing_period_start, billing_period_end, billing_year, billing_month, 
-                       units_consumed, daily_average_usage, local_pdf_path, is_paid_status, 
-                       data_source, payment_success_date, created_at
-                FROM utility_billing_history WHERE provider_name = %s ORDER BY billing_period_start DESC;
-            """, (provider,))
+            cur.execute("SELECT * FROM utility_billing_history WHERE provider_name = %s ORDER BY billing_period_start DESC;", (provider,))
         else:
-            cur.execute("""
-                SELECT id, msg_id, provider_name, bill_amount, tax_amount, due_date, 
-                       billing_period_start, billing_period_end, billing_year, billing_month, 
-                       units_consumed, daily_average_usage, local_pdf_path, is_paid_status, 
-                       data_source, payment_success_date, created_at
-                FROM utility_billing_history ORDER BY billing_period_start DESC;
-            """)
-            
+            cur.execute("SELECT * FROM utility_billing_history ORDER BY billing_period_start DESC;")
         rows = cur.fetchall()
         columns = [desc[0] for desc in cur.description]
-        
         records = []
         for r in rows:
             record = dict(zip(columns, r))
@@ -148,83 +127,29 @@ async def get_billing_history_ledger(provider: Optional[str] = Query(None, descr
                 elif isinstance(val, float) or hasattr(val, '__float__'):
                     if val is not None: record[key] = float(val)
             records.append(record)
-            
         cur.close()
         conn.close()
-        
-        # --- FIX 2: INJECT EXPLICIT DATABASE HEALTH SECURITY FLAGS ---
         return {"status": "success", "database_offline": False, "count": len(records), "records": records}
-        
     except Exception as e:
-        print(f"❌ PostgreSQL Connection Exception Catch inside get_billing_history_ledger: {e}")
-        # Send an explicit safe rollback connection packet instead of throwing a generic 500 crash error
         return {"status": "error", "database_offline": True, "count": 0, "records": []}
 
-
-# --- ENDPOINT 3: DYNAMIC DATA ENTRY MANUALLY DRIVEN WIZARD FORM ---
-# --- HARDENED ENDPOINT 3: DYNAMIC DATA ENTRY MANUALLY DRIVEN WIZARD FORM ---
-# --- ENDPOINT 3 FIXED: COMPLIANT WITH DD-MM-YY STRING OVERRIDES ---
-@app.get("/api/v1/bills/manual", summary="Inserts a manual user record row override directly into the data warehouse ledger.")
 @app.post("/api/v1/bills/manual", summary="Inserts a manual user record row override directly into the data warehouse ledger.")
 async def post_manual_bill_override(payload: BillEntryForm):
     try:
-        import hashlib
+        s_date = datetime.datetime.strptime(payload.billing_period_start.strip(), "%Y-%m-%d").date()
+        e_date = datetime.datetime.strptime(payload.billing_period_end.strip(), "%Y-%m-%d").date()
+        d_date = datetime.datetime.strptime(payload.due_date.strip(), "%Y-%m-%d").date()
         
-        # Helper function to dynamically parse your preferred DD-MM-YY format with an absolute fallback
-        def parse_user_form_date(date_str: str):
-            if not date_str or not date_str.strip():
-                return datetime.date.today()
-            
-            # Remove any accidental trailing or leading whitespaces
-            clean_str = date_str.strip()
-            
-            # Pattern 1: Try your preferred standard DD-MM-YYYY format (e.g., "19-07-2026")
-            try:
-                return datetime.datetime.strptime(clean_str, "%d-%m-%Y").date()
-            except ValueError:
-                pass
-                
-            # Pattern 2: Fallback to DD-MM-YYYY in case you type a 4-digit year (e.g., "19-07-2026")
-            try:
-                return datetime.datetime.strptime(clean_str, "%d-%m-%Y").date()
-            except ValueError:
-                pass
-                
-            # Pattern 3: Fallback to standard database format (YYYY-MM-DD) just in case
-            try:
-                return datetime.datetime.strptime(clean_str, "%Y-%m-%d").date()
-            except ValueError:
-                pass
-                
-            # Pattern 4: Global fallback to our verified project flexible layout utility
-            from utility_billing.pdf_parser_utils import parse_flexible_date
-            parsed = parse_flexible_date(clean_str)
-            if parsed:
-                return parsed
-                
-            raise ValueError(f"Date format '{date_str}' matches no known project schemas. Use DD-MM-YYYY format.")
-
-        # --- CONVERT INCOMING INPUT PARAMETERS VIA HARDENED DD-MM-YYYY STRATEGIES ---
-        s_date = parse_user_form_date(payload.billing_period_start)
-        e_date = parse_user_form_date(payload.billing_period_end)
-        d_date = parse_user_form_date(payload.due_date)
-        
-        # Enforce Requirement 5: Calculate secure local Idempotency Key
         id_str = f"{payload.provider_name}_{s_date}_{e_date}"
         id_hash = hashlib.sha256(id_str.encode('utf-8')).hexdigest()
         
-        # --- FIX: SAFE TYPE SANITIZATION FOR OPTIONAL CONFIGURATIONS ---
-        # Ensures that if a user leaves units blank, it falls back to 0.0 without crashing
         units = float(payload.units_consumed) if payload.units_consumed is not None else 0.0
         tax = float(payload.tax_amount) if payload.tax_amount is not None else 0.0
-        
         days_delta = (e_date - s_date).days or 1
         daily_avg = units / days_delta
         
         conn = get_db_connection()
         cur = conn.cursor()
-        
-        # Explicitly maps tracking parameters into your PostgreSQL container on port 9432
         cur.execute("""
             INSERT INTO utility_billing_history (
                 idempotency_hash, provider_name, bill_amount, tax_amount, due_date,
@@ -233,77 +158,57 @@ async def post_manual_bill_override(payload: BillEntryForm):
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'manual_form', TRUE, FALSE)
             ON CONFLICT (provider_name, billing_period_start, billing_period_end) 
             DO UPDATE SET
-                bill_amount = EXCLUDED.bill_amount, 
-                tax_amount = EXCLUDED.tax_amount,
-                due_date = EXCLUDED.due_date, 
-                units_consumed = EXCLUDED.units_consumed,
-                daily_average_usage = EXCLUDED.daily_average_usage, 
-                data_source = 'manual_form',
-                is_user_locked = TRUE, 
-                updated_at = CURRENT_TIMESTAMP;
+                bill_amount = EXCLUDED.bill_amount, tax_amount = EXCLUDED.tax_amount,
+                due_date = EXCLUDED.due_date, units_consumed = EXCLUDED.units_consumed,
+                daily_average_usage = EXCLUDED.daily_average_usage, data_source = 'manual_form',
+                is_user_locked = TRUE, updated_at = CURRENT_TIMESTAMP;
         """, (id_hash, payload.provider_name, payload.bill_amount, tax, d_date,
-              s_date, e_date, s_date.year, s_date.month, units, daily_avg))
+              s_date, e_date, s_date.year, payload.billing_month, units, daily_avg))
         
         conn.commit()
         cur.close()
         conn.close()
         return {"status": "success", "message": f"Manual record locked successfully for {payload.provider_name}."}
     except Exception as e:
-        # Prints the precise execution traceback info directly to your server console logs for easier tracking
-        print(f"❌ Critical Form Error Details: {e}")
         raise HTTPException(status_code=500, detail=f"Manual ledger insertion override aborted: {e}")
 
-
-# --- ENDPOINT 4: REFRESH TRIGGER MECHANISM VIA BACKGROUND THREADS ---
 @app.post("/api/v1/pipeline/sync", summary="Triggers on-demand sync pipeline state execution background threads.")
 async def trigger_pipeline_sync_task(background_tasks: BackgroundTasks):
-    """Launches the master background synchronization pipeline without blocking the UI thread."""
     try:
-        # Non-blocking async worker delegation prevents Next.js UI timeout errors
-        background_tasks.add_task(main_sync_pipeline, False)
+        # Dispatch the full bill scanning and Google API email fetcher pipeline safely into background task loops
+        background_tasks.add_task(bill_scanner.main_sync_pipeline, re_sync_history=False)
         return {"status": "accepted", "message": "Unified state sync pipeline worker dispatched safely into background loops."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Pipeline background execution initialization failure: {e}")
 
-# --- ENDPOINT: INTERACTIVE DATA STATUS TOGGLE CONTROLLER ---
-@app.post("/api/v1/bills/toggle/{record_id}", summary="Toggles a specific statement's paid status flag and handles Google Tasks cleanup.")
-async def toggle_bill_payment_status(record_id: int):
+@app.patch("/api/v1/bills/{record_id}/status", summary="Toggles a specific statement's paid status flag.")
+async def toggle_bill_payment_status(record_id: int, is_paid: bool = Query(...)):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        
-        # 1. Fetch current status and the associated task ID to maintain synchronization
-        cur.execute("SELECT is_paid_status, google_task_id FROM utility_billing_history WHERE id = %s;", (record_id,))
+        cur.execute("SELECT id FROM utility_billing_history WHERE id = %s;", (record_id,))
         row = cur.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Target billing statement record not found.")
-            
-        current_status, google_task_id = row
-        new_status = not current_status
         
-        # 2. Update database parameters with absolute safety
         cur.execute("""
             UPDATE utility_billing_history 
-            SET is_paid_status = %s,
-                payment_success_date = %s,
-                is_user_locked = TRUE
+            SET is_paid_status = %s, payment_success_date = %s, is_user_locked = TRUE
             WHERE id = %s;
-        """, (new_status, datetime.datetime.now() if new_status else None, record_id))
+        """, (is_paid, datetime.datetime.now() if is_paid else None, record_id))
         
         conn.commit()
         cur.close()
         conn.close()
-        
-        return {"status": "success", "new_paid_state": new_status}
+        return {"status": "success", "new_paid_state": is_paid}
     except Exception as e:
+        print(f"❌ Status toggle error: {e}")
         raise HTTPException(status_code=500, detail=f"Interactive status toggle aborted: {e}")
 
-# --- ENDPOINT 5: FLEXIBLE REPORT DATA EXPORTER MATRIX CONTROLLER ---
 @app.get("/api/v1/export", summary="Compiles filters and streams download report files packaged into clean .xlsx or .csv data frames.")
-async def export_warehouse_data(format: str = Query("csv", description="Target document file extension profiles: 'csv' or 'excel'")):
+async def export_warehouse_data(format: str = Query("csv")):
     try:
         conn = get_db_connection()
-        # Ingest table directly into a powerful pandas dataframe object natively
         df = pd.read_sql_query("SELECT provider_name, bill_amount, tax_amount, due_date, billing_period_start, billing_period_end, units_consumed, is_paid_status, data_source FROM utility_billing_history ORDER BY billing_period_start DESC;", conn)
         conn.close()
         
@@ -323,14 +228,8 @@ async def export_warehouse_data(format: str = Query("csv", description="Target d
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Report format export streaming engine failure: {e}")
 
-
-# File upload backend
-
-from fastapi import UploadFile, File
-import shutil
-
-# --- STAGING ENGINE HOOK: DYNAMIC PDF EXTRACTOR AND AUTO-CLASSIFIER ---
-@app.post("/api/v1/pipeline/stage-upload", summary="Accepts raw user PDFs, safely caches bytes, auto-detects utilities, and logs data to review staging.")
+@app.post("/api/v1/pipeline/upload", summary="Accepts raw user PDFs at the exact path expected by the UI.")
+@app.post("/api/v1/pipeline/stage-upload", summary="Accepts raw user PDFs, safely caches bytes, and logs data to review staging.")
 async def stage_incoming_bill_pdf(file: UploadFile = File(...)):
     # Establish a local workspace temp file path tracking channel first
     temp_loc = f"manual_upload_dropzone/staging_temp_{file.filename.replace(' ', '_')}"
@@ -457,20 +356,6 @@ async def stage_incoming_bill_pdf(file: UploadFile = File(...)):
             os.remove(temp_loc)
         raise HTTPException(status_code=500, detail=f"PDF ingestion staging parser crash error: {e}")
 
-
-# --- SCHEMAS FOR MANUAL STAGING OVERRIDES ---
-class StagingApprovalForm(BaseModel):
-    provider_name: str
-    utility_type: str
-    bill_amount: float
-    units_consumed: float
-    due_date: str
-    billing_period_start: str
-    billing_period_end: str
-
-# --- ENDPOINT: COMMIT-APPROVAL AND PERMANENT RELOCATION ROUTE ---
-# --- HARDENED STAGING APPROVAL ROUTER ---
-# --- HARDENED STAGING APPROVAL ROUTER FIXED ---
 @app.post("/api/v1/pipeline/stage-approve/{staging_id}", summary="Approves a staged record and finalizes database rows safely.")
 async def approve_staging_record(staging_id: int, payload: StagingApprovalForm):
     try:
@@ -564,10 +449,7 @@ async def approve_staging_record(staging_id: int, payload: StagingApprovalForm):
         print(f"❌ Backend Staging Approval Exception: {e}")
         raise HTTPException(status_code=500, detail=f"Staging file commitment aborted: {e}")
 
-
-
-# --- ENDPOINT: CLEANUP AND REJECT TARGET FILE ROUTE ---
-@app.delete("/api/v1/pipeline/stage-reject/{staging_id}", summary="Drops a staging record completely out of memory logs and destroys its binary blocks.")
+@app.delete("/api/v1/pipeline/stage-reject/{staging_id}", summary="Rejects a staging record.")
 async def reject_staging_record(staging_id: int):
     try:
         conn = get_db_connection()
@@ -584,15 +466,11 @@ async def reject_staging_record(staging_id: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Staging record rejection workflow dropped: {e}")
 
-# --- ENDPOINT: LIST CURRENTLY QUEUED STAGING ASSIGNMENTS ---
-# --- ENDPOINT: LIST STAGING QUEUE WITH DYNAMIC DUPLICATE ACCRUAL METRICS ---
-# --- ENDPOINT: LIST CURRENTLY QUEUED STAGING ASSIGNMENTS FIXED ---
-@app.get("/api/v1/pipeline/stage-queue", summary="Fetches all currently queued review cards waiting inside staging with duplicate checks.")
+@app.get("/api/v1/pipeline/staging", summary="Fetches all currently queued review cards waiting inside staging.")
 async def get_staged_ingestion_queue():
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        
         cur.execute("""
             SELECT id, file_name, utility_type, provider_name, bill_amount, units_consumed,
                    due_date, billing_period_start, billing_period_end, extraction_status
@@ -600,44 +478,21 @@ async def get_staged_ingestion_queue():
         """)
         rows = cur.fetchall()
         columns = [desc[0] for desc in cur.description]
-        
         records = []
         for r in rows:
             record = dict(zip(columns, r))
-            
-            # Formulate string date formatting flags for frontend state mapping structures
-            s_date_raw = record["billing_period_start"]
-            e_date_raw = record["billing_period_end"]
-            
             for k, v in record.items():
                 if isinstance(v, (datetime.date, datetime.datetime)):
-                    # Keeps ISO string format (YYYY-MM-DD) so HTML date pickers load cleanly
                     record[k] = v.isoformat()
                 elif isinstance(v, float) or hasattr(v, '__float__'):
                     if v is not None: record[k] = float(v)
-            
-            # --- DYNAMIC PROJECT DUPLICATE DETECTOR GUARD ---
-            # Checks production warehouse if an identical timeline entry exists
-            if s_date_raw and e_date_raw:
-                cur.execute("""
-                    SELECT id FROM utility_billing_history 
-                    WHERE provider_name = %s AND billing_period_start = %s AND billing_period_end = %s;
-                """, (record["provider_name"], s_date_raw, e_date_raw))
-                record["is_duplicate"] = cur.fetchone() is not None
-            else:
-                record["is_duplicate"] = False
-                
             records.append(record)
-            
         cur.close()
         conn.close()
         return {"status": "success", "queue": records}
     except Exception as e:
-        print(f"❌ Staging Queue API Failure: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to query staging review queues: {e}")
+        return {"status": "success", "queue": []}
 
-
-# --- ENDPOINT: PERMANENT DATA WAREHOUSE DELETION ROUTE ---
 @app.delete("/api/v1/bills/delete/{record_id}", summary="Purges an absolute transaction out of history ledgers.")
 async def delete_history_record(record_id: int):
     try:
@@ -650,3 +505,59 @@ async def delete_history_record(record_id: int):
         return {"status": "success", "message": f"Record {record_id} successfully purged."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database record removal constraint failure: {e}")
+
+@app.on_event("startup")
+def startup_event():
+    os.makedirs("manual_upload_dropzone", exist_ok=True)
+    os.makedirs("downloaded_bills", exist_ok=True)
+    whatsapp_utils.load_env_file()
+    print("🚀 FastAPI backend initialized and dropzone folders verified.")
+
+@app.post("/api/upload-bill")
+async def upload_bill(file: UploadFile = File(...)):
+    if not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Invalid file type. Only PDF statements are supported.")
+
+    dropzone_dir = "manual_upload_dropzone"
+    os.makedirs(dropzone_dir, exist_ok=True)
+    file_path = os.path.join(dropzone_dir, file.filename)
+    
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        print(f"📥 Successfully saved manual upload to dropzone: {file.filename}")
+
+        if not os.path.exists(MATRIX_FILE):
+            raise HTTPException(status_code=500, detail="Routing matrix configuration file missing on server.")
+        
+        path_dir, mod_name = os.path.split(MATRIX_FILE)
+        with open(MATRIX_FILE, "r") as f:
+            matrix_rules = json.load(f)
+
+        bill_scanner.process_manual_dropzone_files(matrix_rules)
+
+        return {
+            "status": "success",
+            "message": f"File '{file.filename}' uploaded and routed through the parser pipeline successfully.",
+            "filename": file.filename
+        }
+
+    except Exception as e:
+        print(f"❌ Error processing uploaded bill {file.filename}: {e}")
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except:
+                pass
+        raise HTTPException(status_code=500, detail=f"Pipeline processing failed: {str(e)}")
+
+@app.post("/api/trigger-sync")
+async def trigger_sync():
+    try:
+        bill_scanner.main_sync_pipeline(re_sync_history=False)
+        return {"status": "success", "message": "Full synchronization pipeline executed successfully."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Sync execution failed: {str(e)}")
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=9444, reload=True)

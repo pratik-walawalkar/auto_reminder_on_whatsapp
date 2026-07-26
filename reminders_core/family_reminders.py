@@ -1,4 +1,13 @@
+import sys
 import os
+
+# --- APPEND PARENT ROOT TO SYSTEM PATH & SHIFT RUNTIME WORKING DIRECTORY ---
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(ROOT_DIR)
+os.chdir(ROOT_DIR)
+
+import whatsapp_utils
+
 import json
 import datetime
 from google.auth.transport.requests import Request
@@ -10,27 +19,33 @@ import whatsapp_utils
 
 whatsapp_utils.load_env_file() # Run common env loader
 
-CLIENT_SECRET_FILE = "client_secret.json"
-TOKEN_FILE = "token.json"
+CLIENT_SECRET_FILE = os.environ.get("GOOGLE_CLIENT_SECRET_FILE", "client_secret.json")
+TOKEN_FILE_PERSONAL = os.environ.get("TOKEN_FILE_PERSONAL", "token_personal.json")
+
 SCOPES = [
     'https://www.googleapis.com/auth/calendar.readonly',
-    'https://www.googleapis.com/auth/contacts.readonly'
+    'https://www.googleapis.com/auth/contacts.readonly',
+    'https://www.googleapis.com/auth/tasks'
 ]
 MATRIX_FILE = "routing_matrix.json"
 
 def authenticate_google_calendar():
     creds = None
-    if os.path.exists(TOKEN_FILE):
-        creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
+    if os.path.exists(TOKEN_FILE_PERSONAL):
+        creds = Credentials.from_authorized_user_file(TOKEN_FILE_PERSONAL, SCOPES)
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             print("Refreshing authentication session...")
-            creds.refresh(Request())
-        else:
-            print("Opening browser for Google Authentication login...")
+            try:
+                creds.refresh(Request())
+            except Exception:
+                # If refresh token has been revoked, force re-authentication flow
+                creds = None
+        if not creds:
+            print("Opening browser for Personal Google Account Authentication login...")
             flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRET_FILE, SCOPES)
             creds = flow.run_local_server(port=0)
-        with open(TOKEN_FILE, 'w') as token:
+        with open(TOKEN_FILE_PERSONAL, 'w') as token:
             token.write(creds.to_json())
     return build('calendar', 'v3', credentials=creds)
 

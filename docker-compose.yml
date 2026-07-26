@@ -3,6 +3,8 @@ services:
     image: postgres:15-alpine
     container_name: evolution_db
     restart: unless-stopped
+    ports:
+      - "5432:5432"    
     environment:
       - POSTGRES_USER=evolution_user
       - POSTGRES_PASSWORD=SecretLocalPassword123

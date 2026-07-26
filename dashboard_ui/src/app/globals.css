@@ -4,81 +4,75 @@
 
 @layer base {
   :root {
-    --background: 210 60% 98%;
-    --foreground: 222 47% 11%;
-    --card: 0 0% 100%;
-    --border: 214 32% 91%;
-    --royal-glow: rgba(37, 99, 235, 0.03);
+    /* Gemini-inspired Light Theme: Clean, crisp, high-contrast */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 12%;
+    --card: 0 0% 98%;
+    --card-foreground: 0 0% 15%;
+    --border: 0 0% 89%;
+    --input: 0 0% 89%;
+    --primary: 221 83% 53%; /* Crisp Blue */
+    --primary-foreground: 210 40% 98%;
+    --radius: 1rem;
   }
 
   .dark {
-    --background: 222 47% 4%;
-    --foreground: 210 40% 98%;
-    --card: 222 47% 7%;
-    --border: 217 32% 12%;
-    --royal-glow: rgba(124, 58, 237, 0.12);
+    /* Gemini-inspired Dark Theme: Deep charcoal, easy on the eyes */
+    --background: 240 3% 8%; /* #131314 */
+    --foreground: 0 0% 89%; /* #E3E3E3 */
+    --card: 240 4% 11%; /* #1A1A1C */
+    --card-foreground: 0 0% 89%;
+    --border: 240 5% 18%; /* Subtle dividers */
+    --input: 240 5% 18%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
   }
 }
 
-body {
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
-  transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s ease;
-  /* --- FIX: FORCE ANTI-BLUR / ANTI-SMUDGE SUBPIXEL TEXT RENDERING CONSTRAINTS --- */
-  -webkit-font-smoothing: subpixel-antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
-}
-
-/* Premium High-Contrast Cyber-Sapphire Glassmorphic Panels */
-.royal-card {
-  @apply bg-card border-2 border-border rounded-3xl p-7 md:p-8 transition-all duration-300;
-  box-shadow: 0 4px 30px -2px rgba(0, 0, 0, 0.01), 0 0 50px 0 var(--royal-glow);
-}
-.royal-card:hover {
-  @apply border-purple-500/40 dark:border-purple-400/40 -translate-y-0.5 shadow-md;
-}
-
-/* Centralized Sizing Tokens: Increased globally by 1.5pt - 2pt for ultimate readability */
-/* Centralized Sizing Tokens: Balanced for high-end aesthetic readability */
-.text-dashboard-heading { @apply text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white; }
-.text-dashboard-title   { @apply text-base md:text-lg font-bold tracking-tight text-slate-800 dark:text-slate-100; }
-.text-dashboard-body    { @apply text-sm font-semibold text-slate-900 dark:text-slate-300 antialiased; }
-.text-dashboard-caption { @apply text-xs font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase; }
-.text-dashboard-kpi     { @apply text-2xl md:text-4xl font-bold tracking-tight select-all leading-normal; }
-
-
-/* Centralized Gradient Token Classes for Unified Buttons & Headings */
-.gradient-primary {
-  @apply bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 dark:from-blue-400 dark:via-purple-400 dark:to-pink-400;
-}
-.gradient-btn {
-  @apply bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white shadow-md shadow-purple-500/10 transition-all duration-200 active:scale-95;
-}
-
-/* Modern Segmented Temporal Controls Tab Group */
-.temporal-pill {
-  @apply text-xs md:text-sm font-black px-[18px] py-2.5 rounded-xl transition-all duration-200 border border-transparent whitespace-nowrap;
-}
-.temporal-pill-active {
-  @apply bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md scale-[1.02];
-}
-
-.temporal-pill-inactive {
-  @apply text-slate-400 hover:text-slate-900 dark:text-slate-500 dark:hover:text-white bg-slate-500/5 hover:bg-slate-500/10;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
+@layer base {
+  * {
+    @apply border-border;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  body {
+    @apply bg-background text-foreground antialiased selection:bg-blue-500/30 selection:text-white;
+    /* Increased base font size for overall readability */
+    font-size: 16px; 
   }
 }
 
-.animate-fadeIn {
-  animation: fadeIn 0.3s ease-out forwards;
+@layer components {
+  /* Sporty Left-Edge Highlight Card */
+  .sporty-card {
+    @apply relative overflow-hidden bg-card border rounded-2xl p-5 shadow-sm transition-all duration-300;
+  }
+  
+  .sporty-card::before {
+    content: '';
+    @apply absolute left-0 top-0 bottom-0 w-1.5 transition-colors duration-300;
+  }
+
+  /* Status variants for the sporty edge */
+  .sporty-card.status-paid::before { @apply bg-emerald-500; }
+  .sporty-card.status-pending::before { @apply bg-rose-500; }
+  .sporty-card.status-neutral::before { @apply bg-blue-500; }
+
+  /* Retained Blue/Purple/Pink Theme for Buttons & Highlights */
+  .gradient-btn {
+    @apply bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white shadow-md hover:shadow-lg hover:opacity-90 transition-all duration-300 active:scale-95;
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent;
+  }
+
+  /* Spline Chart & Data Viz Accent Colors */
+  .chart-accent-blue { @apply text-blue-500 fill-blue-500 stroke-blue-500; }
+  .chart-accent-purple { @apply text-purple-500 fill-purple-500 stroke-purple-500; }
+  .chart-accent-pink { @apply text-pink-500 fill-pink-500 stroke-pink-500; }
+
+  /* Upgraded Typography Classes */
+  .text-h1 { @apply text-2xl md:text-3xl font-bold tracking-tight; }
+  .text-h2 { @apply text-xl md:text-2xl font-semibold tracking-tight; }
+  .text-body-lg { @apply text-base md:text-lg text-foreground/90; }
+  .text-body-sm { @apply text-sm md:text-base text-foreground/60; }
 }
