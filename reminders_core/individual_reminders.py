@@ -4,10 +4,10 @@ import os
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(ROOT_DIR)
 os.chdir(ROOT_DIR)
-import whatsapp_utils
 
 import json
 import datetime
+import argparse
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -34,10 +34,9 @@ def fetch_google_contacts_birthdays(creds):
         print("🔍 Syncing with Google Contacts database engine...")
         people_service = build('people', 'v1', credentials=creds)
         
-        # Request a list of contacts containing names and birthday fields
         results = people_service.people().connections().list(
             resourceName='people/me',
-            pageSize=1000, # Adjust higher if you have more than 1000 contacts
+            pageSize=1000,
             personFields='names,birthdays'
         ).execute()
         
@@ -56,9 +55,7 @@ def fetch_google_contacts_birthdays(creds):
                 day = birthday_data.get('day')
                 
                 if month and day:
-                    # Map the birthday to the current processing year
                     mapped_date = datetime.date(current_year, month, day)
-                    
                     if mapped_date not in birthdays_by_date:
                         birthdays_by_date[mapped_date] = []
                         
@@ -74,7 +71,6 @@ def fetch_google_contacts_birthdays(creds):
         return birthdays_by_date
 
 def authenticate_google_calendar(creds):
-    
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             print("Refreshing authentication session...")
@@ -87,7 +83,7 @@ def authenticate_google_calendar(creds):
             token.write(creds.to_json())
     return build('calendar', 'v3', credentials=creds)
 
-def process_individual_reminders():
+def process_individual_reminders(force_run=False):
     if not os.path.exists(MATRIX_FILE):
         print(f"❌ Critical Error: Missing matrix mapping layout file '{MATRIX_FILE}'")
         return
@@ -99,18 +95,14 @@ def process_individual_reminders():
     if not rules:
         print("⚠️ Warning: No individual mapping rules detected inside your routing matrix.")
         return
-    
-    # Pass the authorization object variables downstream
-    # (Assume 'authenticate_google_calendar()' returns an authorized creds object now)
-    # To make this easy, separate your credential tracking from the calendar service build:
+
     creds = None
     if os.path.exists(TOKEN_FILE_PERSONAL):
         creds = Credentials.from_authorized_user_file(TOKEN_FILE_PERSONAL, SCOPES)
-    # ... (Keep your standard flow initialization check code here) ...
     
-    # NEW: Fetch all contact birthdays instantly
     contact_birthdays = fetch_google_contacts_birthdays(creds)
     calendar_service = authenticate_google_calendar(creds)
+    
     now = datetime.datetime.now()
     today = now.date()
     current_hour = now.hour
@@ -134,6 +126,11 @@ def process_individual_reminders():
 
     for rule in rules:
         calendar_name = rule.get("calendar_name", "💼 Custom Calendar")
+        
+        # 🔍 Check schedule configuration per rule before processing
+        if not whatsapp_utils.check_schedule_recurrence(rule, force_run=force_run):
+            continue
+
         calendar_id = rule.get("calendar_id")
         targets = rule.get("targets", [])
 
@@ -143,12 +140,13 @@ def process_individual_reminders():
 
         print(f"🔍 Scanning events for '{calendar_name}'...")
         events_by_date = {}
-        current_date = start  # Reset the tracking date for each calendar rule loop
+        current_date = start
 
         while current_date <= end:
             if current_date in contact_birthdays:
                 events_by_date[current_date] = list(contact_birthdays[current_date])
             current_date += datetime.timedelta(days=1)
+
         try:
             events_result = calendar_service.events().list(
                 calendarId=calendar_id, timeMin=time_min, timeMax=time_max, singleEvents=True, orderBy='startTime'
@@ -157,7 +155,6 @@ def process_individual_reminders():
             for event in events_result.get('items', []):
                 summary = event.get('summary', '')
                 event_start = event['start'].get('dateTime', event['start'].get('date'))
-                
                 date_str = event_start.split('T')[0]
                 event_date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
                 
@@ -183,10 +180,17 @@ def process_individual_reminders():
 
         if not events_by_date:
             print(f"⚪ No events found in calendar '{calendar_name}' for this execution window.")
+            whatsapp_utils.log_reminder_execution(
+                target_id=targets[0] if targets else "N/A",
+                status="Skipped",
+                error_msg="",
+                message_content=f"⚪ No events found in calendar '{calendar_name}' for this execution window.",
+                pipeline_type="individual"
+            )
+            continue
         else:
             print(f"☑️ Found {sum(len(events) for events in events_by_date.values())} events in calendar '{calendar_name}' for this execution window.")
 
-        # --- MODE 1: SUNDAY DIGEST BROADCAST ---
         if mode == "SUNDAY":
             has_celebrations = any(ev["category"] in ["Birthday", "Anniversary"] for dates in events_by_date.values() for ev in dates)
             header = "🗓️ *Upcoming Celebrations This Week:*\n" if has_celebrations else "🗓️ *Upcoming Reminders This Week:*\n"
@@ -198,11 +202,17 @@ def process_individual_reminders():
                     msg_lines.append(f"• *{readable_date}* -> {ev['icon']} {ev['text']}")
             message_body = "\n".join(msg_lines)
 
-        # --- MODE 2: ON-THE-DAY MORNING BROADCAST ---
         elif mode == "MORNING":
             day_events = events_by_date.get(today, [])
             if not day_events:
                 print(f"⚪ No events found today in calendar '{calendar_name}'.")
+                whatsapp_utils.log_reminder_execution(
+                    target_id=targets[0] if targets else "N/A",
+                    status="Skipped",
+                    error_msg="",
+                    message_content=f"⚪ No events found today in calendar '{calendar_name}'.",
+                    pipeline_type="individual"
+                )
                 continue
                 
             has_birthdays = any(ev["category"] == "Birthday" for ev in day_events)
@@ -213,11 +223,17 @@ def process_individual_reminders():
                 msg_lines.append(f"• {ev['icon']} {ev['text']}")
             message_body = "\n".join(msg_lines)
 
-        # --- MODE 3: DAY-BEFORE EVENING BROADCAST (Your Snippet) ---
         else:
             day_events = events_by_date.get(start, [])
             if not day_events:
                 print(f"⚪ No events found for tomorrow in calendar '{calendar_name}'.")
+                whatsapp_utils.log_reminder_execution(
+                    target_id=targets[0] if targets else "N/A",
+                    status="Skipped",
+                    error_msg="",
+                    message_content=f"⚪ No events found for tomorrow in calendar '{calendar_name}'.",
+                    pipeline_type="individual"
+                )
                 continue
                 
             has_celebrations = any(ev["category"] in ["Birthday", "Anniversary"] for ev in day_events)
@@ -229,43 +245,34 @@ def process_individual_reminders():
                 formatted_events.append(f"{ev['icon']} {cleaned_text}")
             message_body += "\n".join(formatted_events)
 
-        # --- SEND MESSAGE & PRINT RECIPIENT LOGS ---
         for target in targets:
-            # Note: WAHA specific 'get_chat_display_name' is removed here to maintain stability.
-            # Using raw chat_id as target variable directly.
-            # success = whatsapp_utils.send_whatsapp_via_selenium(driver, target, message_body)
-            success = whatsapp_utils.send_whatsapp_message(target, message_body)
+            success = whatsapp_utils.send_whatsapp_message(target, message_body, pipeline_type="individual")
             if success:
                 print(f"🚀 Success! Reminders for '{calendar_name}' successfully sent to: {target}")
             else:
                 print(f"❌ Failed to deliver '{calendar_name}' alert package to: {target}")
 
 if __name__ == "__main__":
-    print("Verifying background WhatsApp engine connectivity and session status...")
-    
-    # Initialize the connection state check
-    connection_is_active = whatsapp_utils.initialize_whatsapp()
+    parser = argparse.ArgumentParser(description="Individual WhatsApp Reminders Runner")
+    parser.add_argument("--force", action="store_true", help="Bypass schedule restrictions and execute immediately.")
+    args = parser.parse_args()
 
-    if not connection_is_active:
+    print("Verifying background WhatsApp engine connectivity and session status...")
+    if not whatsapp_utils.initialize_whatsapp():
         print("❌ Script aborted due to inactive API session node.")
         exit(1)
         
     try:
-        process_individual_reminders()
+        process_individual_reminders(force_run=args.force)
+    except Exception as e:
+        print(f"❌ Unhandled execution exception: {e}")
+        whatsapp_utils.log_reminder_execution(
+            target_id="SYSTEM_CORE",
+            status="Failed",
+            error_msg=str(e),
+            message_content="Critical unhandled exception during pipeline execution.",
+            pipeline_type="individual"
+        )
+        exit(1)
     finally:
         print("🏁 Execution complete. Headless pipeline closed down cleanly.")
-
-# if __name__ == "__main__":
-#     print("Verifying background WhatsApp engine connectivity and session status...")
-#     # Start driver via common utility
-#     # driver = whatsapp_utils.initialize_selenium_whatsapp()
-#     driver = whatsapp_utils.initialize_whatsapp()
-#     if not driver:
-#         exit(1)
-        
-#     try:
-#         process_individual_reminders(driver)
-#     finally:
-#         print("🏁 Execution complete. Shutting down active Edge engine pipelines.")
-#         if driver:
-#             driver.quit()

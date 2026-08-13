@@ -1,0 +1,20 @@
+{
+  "upload": {
+    "max_file_size_mb": 2,
+    "allowed_content_types": [
+      "application/pdf"
+    ],
+    "confidence_threshold": 0.8
+  },
+  "message_templates": {
+    "due_date_alert": "\u26a0\ufe0f *{provider}* bill of \u20b9{amount} is due on {due_date}.",
+    "payment_confirmed": "\u2705 Payment confirmed for {provider} amount \u20b9{amount}.",
+    "conflict_notice": "\u26a0\ufe0f Bill conflict detected for {provider} {billing_period_start} to {billing_period_end}."
+  },
+  "parser": {
+    "auto_approve_on_confidence": true
+  },
+  "storage": {
+    "filename_template": "{{year}}_{{{month}}}_{{provider}}.pdf"
+  }
+}

@@ -1,9 +1,16 @@
-import React, { useState } from "react";
+// dashboard_ui/src/app/components/HistoricalTable.tsx
+"use client";
+import React, { useState, useEffect } from "react";
 import { BillRecord } from "../types";
+import dynamic from "next/dynamic";
+import { getApiBaseUrl } from "../lib/api";
+import { Eye, Edit3, Trash2 } from "lucide-react";
+
+const NotificationCenter = dynamic(() => import("./NotificationCenter"), { ssr: false });
 
 interface HistoricalTableProps {
   history: BillRecord[];
-  theme: "dark" | "light";
+  theme: "dark" | "light" | "system";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   t: any;
   searchTerm: string;
@@ -15,6 +22,7 @@ interface HistoricalTableProps {
   selectedMonth?: string;
   onRefresh: () => void;
   onEditRecord?: (record: BillRecord) => void;
+  onViewRecord?: (record: BillRecord) => void;
 }
 
 export default function HistoricalTable({
@@ -29,9 +37,11 @@ export default function HistoricalTable({
   setSelectedYear,
   selectedMonth = "All",
   onRefresh,
+  onEditRecord,
 }: HistoricalTableProps) {
   const isDark = theme === "dark";
   const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
   
   const [editingRecord, setEditingRecord] = useState<BillRecord | null>(null);
   const [formData, setFormData] = useState({
@@ -45,60 +55,18 @@ export default function HistoricalTable({
   });
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleOpenEdit = (record: BillRecord) => {
-    setEditingRecord(record);
-    setFormData({
-      provider_name: record.provider_name || "",
-      utility_type: record.utility_type || "",
-      bill_amount: record.bill_amount || 0,
-      billing_month: record.billing_month || "",
-      billing_year: record.billing_year || new Date().getFullYear(),
-      due_date: record.due_date || "",
-      units_consumed: record.units_consumed || 0,
-    });
-  };
-
-  const handleSaveEdit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingRecord) return;
-    setIsSaving(true);
-
-    try {
-      const activeHostname = typeof window !== "undefined" ? window.location.hostname : "localhost";
-      const apiBaseUrl = activeHostname !== "localhost" && activeHostname !== "127.0.0.1" 
-        ? `http://${activeHostname}:9444` 
-        : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:9444");
-
-      const res = await fetch(`${apiBaseUrl}/api/v1/bills/${editingRecord.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-
-      if (res.ok) {
-        setEditingRecord(null);
-        onRefresh();
-      } else {
-        alert("Failed to update bill record.");
-      }
-    } catch (err) {
-      console.error("Update error:", err);
-      alert("Error updating bill record.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  useEffect(() => {
+    const update = () => setIsMobile(window.innerWidth < 768);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
 
   const handleToggleStatus = async (record: BillRecord) => {
     setUpdatingId(record.id);
     try {
-      const activeHostname = typeof window !== "undefined" ? window.location.hostname : "localhost";
-      const apiBaseUrl = activeHostname !== "localhost" && activeHostname !== "127.0.0.1" 
-        ? `http://${activeHostname}:9444` 
-        : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:9444");
-
       const nextStatus = !record.is_paid_status;
-      const res = await fetch(`${apiBaseUrl}/api/v1/bills/${record.id}/status?is_paid=${nextStatus}`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/v1/bills/${record.id}/status?is_paid=${nextStatus}`, {
         method: "PATCH",
       });
 
@@ -120,8 +88,8 @@ export default function HistoricalTable({
     try {
       const activeHostname = typeof window !== "undefined" ? window.location.hostname : "localhost";
       const apiBaseUrl = activeHostname !== "localhost" && activeHostname !== "127.0.0.1" 
-        ? `http://${activeHostname}:9444` 
-        : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:9444");
+        ? `http://${activeHostname}:8000` 
+        : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000");
 
       const res = await fetch(`${apiBaseUrl}/api/v1/bills/${id}`, {
         method: "DELETE",
@@ -203,7 +171,7 @@ export default function HistoricalTable({
   };
 
   const renderTrendBadge = (trend: { isUp: boolean; isEqual: boolean; percentage: number } | null) => {
-    if (!trend) return null; // Hide if no prior history available
+    if (!trend) return null;
     if (trend.isEqual) {
       return (
         <span className="text-[10px] text-slate-500 font-medium ml-2 px-1.5 py-0.5 rounded bg-slate-800/40">
@@ -352,273 +320,196 @@ export default function HistoricalTable({
         </div>
       </div>
 
-      {/* Table with custom aesthetic scrollbars matching theme */}
-      <div className={`overflow-x-auto ${isDark ? "custom-scrollbar-dark" : "custom-scrollbar-light"}`}>
-        <style jsx>{`
-          .custom-scrollbar-dark::-webkit-scrollbar {
-            height: 6px;
-            width: 6px;
-          }
-          .custom-scrollbar-dark::-webkit-scrollbar-track {
-            background: rgba(15, 23, 42, 0.6);
-          }
-          .custom-scrollbar-dark::-webkit-scrollbar-thumb {
-            background: rgba(51, 65, 85, 0.8);
-            border-radius: 9999px;
-          }
-          .custom-scrollbar-dark::-webkit-scrollbar-thumb:hover {
-            background: rgba(71, 85, 105, 1);
-          }
+      {isMobile ? (
+        <div className="space-y-3 p-4">
+          {filteredHistory.map((record) => (
+            <div 
+              key={record.id} 
+              className="flex w-full rounded-2xl border border-slate-800 bg-slate-900/90 overflow-hidden shadow-lg"
+            >
+              <div className="flex-1 p-3.5 flex flex-col justify-between space-y-2 min-w-0">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-bold text-slate-100 text-sm truncate">{record.provider_name}</p>
+                    <p className="text-[11px] text-slate-400 truncate">{record.utility_type || "Utility Bill"}</p>
+                  </div>
+                  
+                  <div className="text-right shrink-0">
+                    <div className="text-sm font-black text-slate-200">
+                      ₹ {Number(record.bill_amount || 0).toLocaleString("en-IN")}
+                    </div>
+                    <button
+                      disabled={updatingId === record.id}
+                      onClick={() => handleToggleStatus(record)}
+                      className={`mt-1 rounded-full px-2 py-0.5 text-[9px] font-semibold transition-all cursor-pointer inline-block ${
+                        record.is_paid_status
+                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                          : "bg-rose-500/10 text-rose-400 border border-rose-500/30"
+                      }`}
+                    >
+                      {updatingId === record.id 
+                        ? (t.updating || "Updating...") 
+                        : record.is_paid_status 
+                          ? (t.paid || "Paid") 
+                          : (t.unpaid || "Unpaid")}
+                    </button>
+                  </div>
+                </div>
 
-          .custom-scrollbar-light::-webkit-scrollbar {
-            height: 6px;
-            width: 6px;
-          }
-          .custom-scrollbar-light::-webkit-scrollbar-track {
-            background: rgba(241, 245, 249, 0.8);
-          }
-          .custom-scrollbar-light::-webkit-scrollbar-thumb {
-            background: rgba(203, 213, 225, 1);
-            border-radius: 9999px;
-          }
-          .custom-scrollbar-light::-webkit-scrollbar-thumb:hover {
-            background: rgba(148, 163, 184, 1);
-          }
-        `}</style>
-        <table className="w-full text-left text-xs whitespace-nowrap">
-          <thead
-            className={`uppercase tracking-wider ${
-              isDark ? "bg-slate-900/80 text-slate-400 border-b border-slate-800" : "bg-slate-50 text-slate-500 border-b border-slate-200"
-            }`}
-          >
-            <tr>
-              <th className="px-6 py-3.5 font-semibold">{t.provider || "Provider"}</th>
-              <th className="px-6 py-3.5 font-semibold">Utility</th>
-              <th className="px-6 py-3.5 font-semibold">Billing Cycle</th>
-              <th className="px-6 py-3.5 font-semibold">{t.amount || "Amount"}</th>
-              <th className="px-6 py-3.5 font-semibold">Consumption</th>
-              <th className="px-6 py-3.5 font-semibold">{t.status || "Status"}</th>
-              <th className="px-6 py-3.5 font-semibold text-right">{t.actions || "Actions"}</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-inherit">
-            {filteredHistory.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="px-6 py-8 text-center text-slate-500 text-xs">
-                  No matching historical records found for this period.
-                </td>
-              </tr>
-            ) : (
-              filteredHistory.map((record, index) => {
-                const amountTrend = getTrendData(index, record, 'bill_amount');
-                const unitsTrend = getTrendData(index, record, 'units_consumed');
+                <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800/60">
+                  <span>{record.billing_month} {record.billing_year}</span>
+                  <span>{record.units_consumed ? `${record.units_consumed} Units` : "-"}</span>
+                </div>
+              </div>
 
-                return (
-                  <tr key={record.id} className={`transition-colors ${isDark ? "hover:bg-slate-800/40" : "hover:bg-slate-50"}`}>
-                    <td className="px-6 py-4">
-                      <span className="font-bold">{record.provider_name}</span>
-                      <span className="block text-[10px] text-slate-400">Due: {record.due_date || "N/A"}</span>
-                    </td>
-                    <td className="px-6 py-4 text-slate-300 font-medium">{record.utility_type}</td>
-                    
-                    <td className="px-6 py-4 text-slate-400 text-[11px]">
-                      <span className="block font-semibold text-slate-300">{record.billing_month} {record.billing_year}</span>
-                      {record.billing_period_start && record.billing_period_end ? (
-                         <span>{record.billing_period_start} to {record.billing_period_end}</span>
-                      ) : (
-                         <span>Cycle unavailable</span>
-                      )}
-                    </td>
-                    
-                    <td className="px-6 py-4 font-bold text-slate-200 flex items-center">
-                      <span>₹ {record.bill_amount?.toLocaleString("en-IN")}</span>
-                      {renderTrendBadge(amountTrend)}
-                    </td>
-                    
-                    <td className="px-6 py-4 text-slate-300">
-                      {record.units_consumed ? (
-                        <div className="inline-flex items-center space-x-1">
-                          <span className="px-2 py-1 bg-slate-800 rounded-md text-[10px] font-bold text-slate-200">
-                            {record.units_consumed} Units
-                          </span>
-                          {renderTrendBadge(unitsTrend)}
-                        </div>
-                      ) : (
-                        "-"
-                      )}
-                    </td>
+              <div className="flex flex-col border-l border-slate-800 w-18 text-[11px] font-medium shrink-0">
+                <button
+                  onClick={() => {
+                    window.open(`${getApiBaseUrl()}/api/bills/${record.id}/view`, '_blank');
+                  }}
+                  className="flex-1 px-2 py-2.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border-b border-slate-800 transition-all active:scale-95 flex items-center justify-center rounded-tr-2xl cursor-pointer"
+                  title="View Bill"
+                >
+                  View
+                </button>
 
-                    <td className="px-6 py-4">
-                      <button
-                        disabled={updatingId === record.id}
-                        onClick={() => handleToggleStatus(record)}
-                        className={`px-3 py-1 rounded-full font-semibold text-[10px] border transition-all cursor-pointer ${
-                          record.is_paid_status
-                            ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20"
-                            : "bg-rose-500/10 text-rose-500 border-rose-500/20 hover:bg-rose-500/20"
-                        }`}
-                      >
-                        {updatingId === record.id ? "Updating..." : record.is_paid_status ? (t.paid || "Paid") : (t.unpaid || "Unpaid")}
-                      </button>
-                    </td>
+                <button
+                  onClick={() => onEditRecord?.(record)}
+                  className="flex-1 px-2 py-2.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border-b border-slate-800 transition-all active:scale-95 flex items-center justify-center cursor-pointer"
+                  title="Edit Record"
+                >
+                  Edit
+                </button>
 
-                    <td className="px-6 py-4 text-right space-x-2">
-                      <button
-                        onClick={() => handleOpenEdit(record)}
-                        className="px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors font-bold text-[11px] border border-blue-500/35 inline-flex items-center justify-center cursor-pointer"
-                        title="Edit Record"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(record.id)}
-                        className="p-1.5 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition-colors inline-flex items-center justify-center cursor-pointer"
-                        title="Delete Record"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Built-in Edit Input Modal */}
-      {editingRecord && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-          <div
-            className={`w-full max-w-lg p-6 rounded-3xl border shadow-2xl transition-all ${
-              isDark ? "bg-slate-900 border-slate-800 text-slate-200" : "bg-white border-slate-200 text-slate-800"
-            }`}
-          >
-            <div className="flex items-center justify-between pb-4 mb-4 border-b border-inherit">
-              <h3 className="text-lg font-extrabold bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">
-                Edit Bill Record (ID: {editingRecord.id})
-              </h3>
-              <button
-                onClick={() => setEditingRecord(null)}
-                className="p-1.5 rounded-xl bg-slate-800/50 text-slate-400 hover:text-white transition-colors cursor-pointer"
-              >
-                ✕
-              </button>
+                <button
+                  onClick={() => handleDelete(record.id)}
+                  className="flex-1 px-2 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition-all active:scale-95 flex items-center justify-center rounded-br-2xl cursor-pointer"
+                  title="Delete Record"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
+          ))}
+        </div>
+      ) : (
+        <div className="overflow-x-auto w-full pb-2">
+          <table className="w-full text-left text-xs table-auto">
+            <thead
+              className={`uppercase tracking-wider ${
+                isDark ? "bg-slate-900/80 text-slate-400 border-b border-slate-800" : "bg-slate-50 text-slate-500 border-b border-slate-200"
+              }`}
+            >
+              <tr>
+                <th className="px-3 sm:px-5 py-3.5 font-semibold align-middle">{t.provider || "Provider"}</th>
+                <th className="px-3 sm:px-5 py-3.5 font-semibold align-middle">Utility</th>
+                <th className="px-3 sm:px-5 py-3.5 font-semibold align-middle">Billing Cycle</th>
+                <th className="px-3 sm:px-5 py-3.5 font-semibold align-middle">{t.amount || "Amount"}</th>
+                <th className="px-3 sm:px-5 py-3.5 font-semibold align-middle">Consumption</th>
+                <th className="px-2 sm:px-3 py-3.5 font-semibold align-middle w-24">{t.status || "Status"}</th>
+                <th className="px-0 py-0 font-semibold text-right align-middle w-32"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-inherit">
+              {filteredHistory.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-3 sm:px-6 py-8 text-center text-slate-500 text-xs align-middle">
+                    No matching historical records found for this period.
+                  </td>
+                </tr>
+              ) : (
+                filteredHistory.map((record, index) => {
+                  const amountTrend = getTrendData(index, record, 'bill_amount');
+                  const unitsTrend = getTrendData(index, record, 'units_consumed');
 
-            <form onSubmit={handleSaveEdit} className="space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-semibold mb-1 text-slate-400">Provider Name</label>
-                  <input
-                    type="text"
-                    value={formData.provider_name}
-                    onChange={(e) => setFormData({ ...formData, provider_name: e.target.value })}
-                    className={`w-full p-2.5 rounded-xl border outline-none font-medium ${
-                      isDark ? "bg-slate-950 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-300 text-slate-800"
-                    }`}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold mb-1 text-slate-400">Utility Type</label>
-                  <input
-                    type="text"
-                    value={formData.utility_type}
-                    onChange={(e) => setFormData({ ...formData, utility_type: e.target.value })}
-                    className={`w-full p-2.5 rounded-xl border outline-none font-medium ${
-                      isDark ? "bg-slate-950 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-300 text-slate-800"
-                    }`}
-                    required
-                  />
-                </div>
-              </div>
+                  return (
+                    <tr key={record.id} className={`transition-colors group ${isDark ? "hover:bg-slate-800/40" : "hover:bg-slate-50"}`}>
+                      <td className="px-3 sm:px-5 py-3 align-middle">
+                        <span className="font-bold">{record.provider_name}</span>
+                        <span className="block text-[10px] text-slate-400">Due: {record.due_date || "N/A"}</span>
+                      </td>
+                      <td className="px-3 sm:px-5 py-3 align-middle text-slate-300 font-medium">{record.utility_type}</td>
+                      
+                      <td className="px-3 sm:px-5 py-3 align-middle text-slate-400 text-[11px]">
+                        <span className="block font-semibold text-slate-300">{record.billing_month} {record.billing_year}</span>
+                        {record.billing_period_start && record.billing_period_end ? (
+                           <span>{record.billing_period_start} to {record.billing_period_end}</span>
+                        ) : (
+                           <span>Cycle unavailable</span>
+                        )}
+                      </td>
+                      
+                      <td className="px-3 sm:px-5 py-3 align-middle font-bold text-slate-200">
+                        <div className="flex items-center">
+                          <span>₹ {record.bill_amount?.toLocaleString("en-IN")}</span>
+                          {renderTrendBadge(amountTrend)}
+                        </div>
+                      </td>
+                      
+                      <td className="px-3 sm:px-5 py-3 align-middle text-slate-300">
+                        {record.units_consumed ? (
+                          <div className="flex items-center space-x-1">
+                            <span className="px-2 py-1 bg-slate-800 rounded-md text-[10px] font-bold text-slate-200">
+                              {record.units_consumed} Units
+                            </span>
+                            {renderTrendBadge(unitsTrend)}
+                          </div>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-semibold mb-1 text-slate-400">Amount (₹)</label>
-                  <input
-                    type="number"
-                    value={formData.bill_amount}
-                    onChange={(e) => setFormData({ ...formData, bill_amount: Number(e.target.value) })}
-                    className={`w-full p-2.5 rounded-xl border outline-none font-medium ${
-                      isDark ? "bg-slate-950 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-300 text-slate-800"
-                    }`}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold mb-1 text-slate-400">Units Consumed</label>
-                  <input
-                    type="number"
-                    value={formData.units_consumed}
-                    onChange={(e) => setFormData({ ...formData, units_consumed: Number(e.target.value) })}
-                    className={`w-full p-2.5 rounded-xl border outline-none font-medium ${
-                      isDark ? "bg-slate-950 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-300 text-slate-800"
-                    }`}
-                  />
-                </div>
-              </div>
+                      {/* Compact Paid status column */}
+                      <td className="px-2 sm:px-3 py-3 align-middle">
+                        <button
+                          disabled={updatingId === record.id}
+                          onClick={() => handleToggleStatus(record)}
+                          className={`px-2.5 py-1 rounded-full font-semibold text-[10px] border transition-all cursor-pointer inline-block ${
+                            record.is_paid_status
+                              ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20"
+                              : "bg-rose-500/10 text-rose-500 border-rose-500/20 hover:bg-rose-500/20"
+                          }`}
+                        >
+                          {updatingId === record.id ? "..." : record.is_paid_status ? (t.paid || "Paid") : (t.unpaid || "Unpaid")}
+                        </button>
+                      </td>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-semibold mb-1 text-slate-400">Billing Month</label>
-                  <input
-                    type="text"
-                    value={formData.billing_month}
-                    onChange={(e) => setFormData({ ...formData, billing_month: e.target.value })}
-                    className={`w-full p-2.5 rounded-xl border outline-none font-medium ${
-                      isDark ? "bg-slate-950 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-300 text-slate-800"
-                    }`}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold mb-1 text-slate-400">Billing Year</label>
-                  <input
-                    type="number"
-                    value={formData.billing_year}
-                    onChange={(e) => setFormData({ ...formData, billing_year: Number(e.target.value) })}
-                    className={`w-full p-2.5 rounded-xl border outline-none font-medium ${
-                      isDark ? "bg-slate-950 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-300 text-slate-800"
-                    }`}
-                    required
-                  />
-                </div>
-              </div>
+                      {/* Edge-to-edge icon action buttons */}
+                      <td className="p-0 align-stretch text-right">
+                        <div className="flex h-full items-stretch justify-end border-l border-inherit">
+                          <button
+                            onClick={() => {
+                              window.open(`${getApiBaseUrl()}/api/bills/${record.id}/view`, '_blank');
+                            }}
+                            className="px-3 py-3 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border-r border-inherit transition-all flex items-center justify-center cursor-pointer"
+                            title="View Bill"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
 
-              <div>
-                <label className="block font-semibold mb-1 text-slate-400">Due Date</label>
-                <input
-                  type="text"
-                  value={formData.due_date}
-                  onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-                  className={`w-full p-2.5 rounded-xl border outline-none font-medium ${
-                    isDark ? "bg-slate-950 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-300 text-slate-800"
-                  }`}
-                />
-              </div>
+                          <button
+                            onClick={() => onEditRecord?.(record)}
+                            className="px-3 py-3 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border-r border-inherit transition-all flex items-center justify-center cursor-pointer"
+                            title="Edit Record"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
 
-              <div className="flex justify-end space-x-3 pt-4 border-t border-inherit">
-                <button
-                  type="button"
-                  onClick={() => setEditingRecord(null)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold transition-all cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-lg transition-all cursor-pointer"
-                >
-                  {isSaving ? "Saving..." : "Save Changes"}
-                </button>
-              </div>
-            </form>
-          </div>
+                          <button
+                            onClick={() => handleDelete(record.id)}
+                            className="px-3 py-3 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition-all flex items-center justify-center cursor-pointer"
+                            title="Delete Record"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

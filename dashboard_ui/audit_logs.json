@@ -1,0 +1,226 @@
+[
+  {
+    "id": "log-1785956470992-individual",
+    "timestamp": "2026-08-05 19:01:10",
+    "type": "individual",
+    "recipient": "Individual Contact",
+    "message": "Verifying background WhatsApp engine connectivity and session status...\r\n🤖 Initializing API pipeline connection to instance: my_personal_session...\r\n",
+    "status": "Delivered"
+  },
+  {
+    "id": "log-1785822644958-family",
+    "timestamp": "2026-08-04 05:50:45",
+    "type": "family",
+    "recipient": "Family WhatsApp Group",
+    "message": "Verifying background WhatsApp engine connectivity and session status...\r\n🤖 Initializing API pipeline connection to instance: my_personal_session...\r\n",
+    "status": "Delivered"
+  },
+  {
+    "id": "log-1785698943292-individual",
+    "timestamp": "2026-08-02 19:29:03",
+    "type": "individual",
+    "recipient": "Individual Contact",
+    "message": "Verifying background WhatsApp engine connectivity and session status...\r\n🤖 Initializing API pipeline connection to instance: my_personal_session...\r\n",
+    "status": "Delivered"
+  },
+  {
+    "id": "log-1785697409760-family",
+    "timestamp": "2026-08-02 19:03:29",
+    "type": "family",
+    "recipient": "Family WhatsApp Group",
+    "message": "Verifying background WhatsApp engine connectivity and session status...\r\n🤖 Initializing API pipeline connection to instance: my_personal_session...\r\n",
+    "status": "Delivered"
+  },
+  {
+    "id": "log-1785697261662-family",
+    "timestamp": "2026-08-02 19:01:01",
+    "type": "family",
+    "recipient": "Family WhatsApp Group",
+    "message": "Verifying background WhatsApp engine connectivity and session status...\r\n🤖 Initializing API pipeline connection to instance: my_personal_session...\r\n",
+    "status": "Failed"
+  },
+  {
+    "id": "log-1785697251307-family",
+    "timestamp": "2026-08-02 19:00:51",
+    "type": "family",
+    "recipient": "Family WhatsApp Group",
+    "message": "Verifying background WhatsApp engine connectivity and session status...\r\n🤖 Initializing API pipeline connection to instance: my_personal_session...\r\n",
+    "status": "Failed"
+  },
+  {
+    "id": "log-1785696767228-family",
+    "timestamp": "2026-08-02 18:52:47",
+    "type": "family",
+    "recipient": "Family WhatsApp Group",
+    "message": "Verifying background WhatsApp engine connectivity and session status...\r\n🤖 Initializing API pipeline connection to instance: my_personal_session...\r\n",
+    "status": "Delivered"
+  },
+  {
+    "id": "log-1785696132479-family",
+    "timestamp": "2026-08-02 18:42:12",
+    "type": "family",
+    "recipient": "Family WhatsApp Group",
+    "message": "Verifying background WhatsApp engine connectivity and session status...\r\n🤖 Initializing API pipeline connection to instance: my_personal_session...\r\n",
+    "status": "Delivered"
+  },
+  {
+    "id": "log-1785696008845-family",
+    "timestamp": "2026-08-02 18:40:08",
+    "type": "family",
+    "recipient": "Family WhatsApp Group",
+    "message": "Verifying background WhatsApp engine connectivity and session status...\r\n🤖 Initializing API pipeline connection to instance: my_personal_session...\r\n",
+    "status": "Delivered"
+  },
+  {
+    "id": "log-1785695975333-individual",
+    "timestamp": "2026-08-02 18:39:35",
+    "type": "individual",
+    "recipient": "Individual Contact",
+    "message": "Verifying background WhatsApp engine connectivity and session status...\r\n🤖 Initializing API pipeline connection to instance: my_personal_session...\r\n",
+    "status": "Delivered"
+  },
+  {
+    "id": "log-1785695406144-family",
+    "timestamp": "2026-08-02 18:30:06",
+    "type": "family",
+    "recipient": "Family WhatsApp Group",
+    "message": "Verifying background WhatsApp engine connectivity and session status...\r\n🤖 Initializing API pipeline connection to instance: my_personal_session...\r\n",
+    "status": "Delivered"
+  },
+  {
+    "id": "log-1785695356170-family",
+    "timestamp": "2026-08-02 18:29:16",
+    "type": "family",
+    "recipient": "Family WhatsApp Group",
+    "message": "Verifying background WhatsApp engine connectivity and session status...\r\n🤖 Initializing API pipeline connection to instance: my_personal_session...\r\n",
+    "status": "Delivered"
+  },
+  {
+    "id": "log-1785694929479-family",
+    "timestamp": "2026-08-02 18:22:09",
+    "type": "family",
+    "recipient": "Family WhatsApp Group",
+    "message": "Verifying background WhatsApp engine connectivity and session status...\r\n🤖 Initializing API pipeline connection to instance: my_personal_session...\r\n",
+    "status": "Delivered"
+  },
+  {
+    "id": "log-1785694892556-individual",
+    "timestamp": "2026-08-02 18:21:32",
+    "type": "individual",
+    "recipient": "Individual Contact",
+    "message": "Verifying background WhatsApp engine connectivity and session status...\r\n🤖 Initializing API pipeline connection to instance: my_personal_session...\r\n",
+    "status": "Delivered"
+  },
+  {
+    "id": "log-1785692386769-individual",
+    "timestamp": "2026-08-02 17:39:46",
+    "type": "individual",
+    "recipient": "Individual Contact",
+    "message": "Verifying background WhatsApp engine connectivity and session status...\r\n🤖 Initializing API pipeline connection to instance: my_personal_session...\r\n",
+    "status": "Delivered"
+  },
+  {
+    "id": "log-1785692351386-individual",
+    "timestamp": "2026-08-02 17:39:11",
+    "type": "individual",
+    "recipient": "Individual Contact",
+    "message": "Verifying background WhatsApp engine connectivity and session status...\r\n🤖 Initializing API pipeline connection to instance: my_personal_session...\r\n",
+    "status": "Delivered"
+  },
+  {
+    "id": "log-1785691573222-individual",
+    "timestamp": "2026-08-02 17:26:13",
+    "type": "individual",
+    "recipient": "Individual Contact",
+    "message": "Verifying background WhatsApp engine connectivity and session status...\r\n🤖 Initializing API pipeline connection to instance: my_personal_session...\r\n",
+    "status": "Delivered"
+  },
+  {
+    "id": "log-1785691526554-family",
+    "timestamp": "2026-08-02 17:25:26",
+    "type": "family",
+    "recipient": "Family WhatsApp Group",
+    "message": "Verifying background WhatsApp engine connectivity and session status...\r\n🤖 Initializing API pipeline connection to instance: my_personal_session...\r\n",
+    "status": "Delivered"
+  },
+  {
+    "id": "log-1785691027573-family",
+    "timestamp": "2026-08-02 17:17:07",
+    "type": "family",
+    "recipient": "Family WhatsApp Group",
+    "message": "Verifying background WhatsApp engine connectivity and session status...\r\n🤖 Initializing API pipeline connection to instance: my_personal_session...\r\n",
+    "status": "Delivered"
+  },
+  {
+    "id": "log-1785690672662-family",
+    "timestamp": "2026-08-02 17:11:12",
+    "type": "family",
+    "recipient": "Family WhatsApp Group",
+    "message": "Verifying background WhatsApp engine connectivity and session status...\r\n🤖 Initializing API pipeline connection to instance: my_personal_session...\r\n",
+    "status": "Delivered"
+  },
+  {
+    "id": "log-1785690147380-individual",
+    "timestamp": "2026-08-02 17:02:27",
+    "type": "individual",
+    "recipient": "Individual Contact",
+    "message": "Verifying background WhatsApp engine connectivity and session status...\r\n🤖 Initializing API pipeline connection to instance: my_personal_session...\r\n",
+    "status": "Delivered"
+  },
+  {
+    "id": "log-1785689637599-family",
+    "timestamp": "2026-08-02 16:53:57",
+    "type": "family",
+    "recipient": "Family WhatsApp Group",
+    "message": "Verifying background WhatsApp engine connectivity and session status...\r\n🤖 Initializing API pipeline connection to instance: my_personal_session...\r\n",
+    "status": "Delivered"
+  },
+  {
+    "id": "log-1785673467326-family",
+    "timestamp": "2026-08-02 12:24:27",
+    "type": "family",
+    "recipient": "Family WhatsApp Group",
+    "message": "Verifying background WhatsApp engine connectivity and session status...\r\n🤖 Initializing API pipeline connection to instance: my_personal_session...\r\n",
+    "status": "Delivered"
+  },
+  {
+    "id": "log-1785659187554-family",
+    "timestamp": "2026-08-02 08:26:27",
+    "type": "family",
+    "recipient": "Family WhatsApp Group",
+    "message": "Verifying background WhatsApp engine connectivity and session status...\r\n🤖 Initializing API pipeline connection to instance: my_personal_session...\r\n",
+    "status": "Delivered"
+  },
+  {
+    "id": "log-1785651897610-family",
+    "timestamp": "2026-08-02 06:24:57",
+    "type": "family",
+    "recipient": "Family WhatsApp Group",
+    "message": "Verifying background WhatsApp engine connectivity and session status...\r\n🤖 Initializing API pipeline connection to instance: my_personal_session...\r\n",
+    "status": "Delivered"
+  },
+  {
+    "id": "log-1785618551587-individual",
+    "timestamp": "2026-08-01 21:09:11",
+    "type": "individual",
+    "recipient": "Individual Contact",
+    "message": "Verifying background WhatsApp engine connectivity and session status...\r\n🤖 Initializing API pipeline connection to instance: my_personal_session...\r\n",
+    "status": "Delivered"
+  },
+  {
+    "id": "log-1785617031486-individual",
+    "timestamp": "2026-08-01 20:43:51",
+    "type": "individual",
+    "recipient": "Individual Contact",
+    "message": "Verifying background WhatsApp engine connectivity and session status...\r\n🤖 Initializing API pipeline connection to instance: my_personal_session...\r\n",
+    "status": "Delivered"
+  },
+  {
+    "id": "log-1785615854924-individual",
+    "timestamp": "2026-08-01 20:24:14",
+    "type": "individual",
+    "recipient": "Individual Contact",
+    "message": "Verifying background WhatsApp engine connectivity and session status...\r\n🤖 Initializing API pipeline connection to instance: my_personal_session...\r\n",
+    "status": "Delivered"
+  }
+]

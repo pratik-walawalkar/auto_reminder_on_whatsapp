@@ -4,13 +4,13 @@
 
 @layer base {
   :root {
-    /* Gemini-inspired Light Theme: Clean, crisp, high-contrast */
-    --background: 0 0% 100%;
-    --foreground: 0 0% 12%;
-    --card: 0 0% 98%;
-    --card-foreground: 0 0% 15%;
-    --border: 0 0% 89%;
-    --input: 0 0% 89%;
+    /* Upgraded Light Theme: Solid, crisp white surfaces with defined slate borders for strong contrast */
+    --background: 210 40% 98%; /* #f8fafc (Clean slate-50 background) */
+    --foreground: 222 47% 11%; /* #0f172a (Deep slate-900 for headings) */
+    --card: 0 0% 100%;       /* #ffffff (Pure solid white cards) */
+    --card-foreground: 222 47% 11%;
+    --border: 214 32% 91%;   /* #cbd5e1 (Clearer slate-300 borders for structural definition) */
+    --input: 214 32% 91%;
     --primary: 221 83% 53%; /* Crisp Blue */
     --primary-foreground: 210 40% 98%;
     --radius: 1rem;
@@ -27,6 +27,8 @@
     --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
   }
+
+  
 }
 
 @layer base {
@@ -76,3 +78,9 @@
   .text-body-lg { @apply text-base md:text-lg text-foreground/90; }
   .text-body-sm { @apply text-sm md:text-base text-foreground/60; }
 }
+
+/* Modern themed scrollbars */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: rgba(15,23,42,0.12); border-radius: 9999px; }
+*::-webkit-scrollbar-thumb { background: linear-gradient(180deg, rgba(99,102,241,0.9), rgba(59,130,246,0.9)); border-radius: 9999px; border: 2px solid rgba(0,0,0,0.06); }
+* { scrollbar-color: rgba(99,102,241,0.9) rgba(15,23,42,0.12); scrollbar-width: thin; }

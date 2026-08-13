@@ -6,7 +6,7 @@ interface AnalyticsChartsProps {
   metrics: MetricData | null;
   history: BillRecord[];
   rawHistory: BillRecord[];
-  theme: "dark" | "light";
+  theme: "dark" | "light" | "system";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   t: any;
 }
@@ -89,8 +89,22 @@ export default function AnalyticsCharts({
               >
                 <div>
                   <p className="font-bold">{record.provider_name}</p>
-                  <p className="text-slate-400 text-[10px]">
-                    {record.billing_month} {record.billing_year} • {record.utility_type}
+                  <p className="text-slate-400 text-[10px] space-x-1">
+                    <span>{record.billing_month} {record.billing_year}</span>
+                    <span>•</span>
+                    <span className="font-semibold">{record.utility_type}</span>
+                    {(record.billing_period_start || record.billing_period_end) && (
+                      <>
+                        <span>•</span>
+                        <span>{record.billing_period_start} to {record.billing_period_end}</span>
+                      </>
+                    )}
+                    {record.units_consumed ? (
+                      <>
+                        <span>•</span>
+                        <span className="font-bold text-blue-400">{record.units_consumed} Units</span>
+                      </>
+                    ) : null}
                   </p>
                 </div>
                 <div className="text-right">

@@ -1,8 +1,10 @@
 // dashboard_ui/src/app/components/ManualOverrideModal.tsx
+"use client";
 import React, { useState } from "react";
+import { getApiBaseUrl } from "../lib/api";
 
 interface ManualOverrideModalProps {
-  theme: "dark" | "light";
+  theme: "dark" | "light" | "system";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   t: any;
   onClose: () => void;
@@ -31,11 +33,6 @@ export default function ManualOverrideModal({ theme, t, onClose, onSuccess }: Ma
     setErrorMsg("");
 
     try {
-      const activeHostname = typeof window !== "undefined" ? window.location.hostname : "localhost";
-      const apiBaseUrl = activeHostname !== "localhost" && activeHostname !== "127.0.0.1"
-        ? `http://${activeHostname}:9444`
-        : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:9444");
-
       const payload = {
         provider_name: providerName,
         utility_type: utilityType,
@@ -49,7 +46,7 @@ export default function ManualOverrideModal({ theme, t, onClose, onSuccess }: Ma
         status: "Pending",
       };
 
-      const res = await fetch(`${apiBaseUrl}/api/v1/bills/manual`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/v1/bills/manual`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -68,19 +65,19 @@ export default function ManualOverrideModal({ theme, t, onClose, onSuccess }: Ma
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
-      <div className={`w-full max-w-xl rounded-3xl border p-6 shadow-2xl overflow-hidden relative ${isDark ? "bg-slate-900 border-slate-800 text-slate-200" : "bg-white border-slate-200 text-slate-800"}`}>
+      <div className={`w-full max-w-xl rounded-3xl border p-6 shadow-2xl overflow-hidden relative transition-colors ${isDark ? "bg-slate-900 border-slate-800 text-slate-200" : "bg-white border-slate-200 text-slate-800"}`}>
         
         {/* Subtle top-edge glow */}
         <div className="absolute -top-20 -right-20 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h3 className="text-lg font-bold bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">
+            <h3 className={`text-lg font-bold bg-gradient-to-r ${isDark ? "from-blue-400 to-indigo-500" : "from-blue-600 to-indigo-600"} bg-clip-text text-transparent`}>
               {t.lang === "mr" ? "मॅन्युअल बिल एंट्री जोडा" : "Add Manual Utility Entry"}
             </h3>
-            <p className="text-xs text-slate-400">Record bills manually with consumption metrics and billing cycles.</p>
+            <p className={`text-xs ${isDark ? "text-slate-400" : "text-slate-500"}`}>Record bills manually with consumption metrics and billing cycles.</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white text-xl font-bold p-1">×</button>
+          <button onClick={onClose} className={`text-xl font-bold p-1 transition-colors ${isDark ? "text-slate-400 hover:text-white" : "text-slate-500 hover:text-slate-900"}`}>×</button>
         </div>
 
         {errorMsg && (
@@ -92,22 +89,22 @@ export default function ManualOverrideModal({ theme, t, onClose, onSuccess }: Ma
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Provider Name</label>
+              <label className={`block text-xs font-bold uppercase tracking-wider mb-1 ${isDark ? "text-slate-400" : "text-slate-600"}`}>Provider Name</label>
               <input
                 type="text"
                 required
                 placeholder="e.g. MSEDCL"
                 value={providerName}
                 onChange={(e) => setProviderName(e.target.value)}
-                className={`w-full px-3.5 py-2.5 rounded-xl text-sm border outline-none transition-all ${isDark ? "bg-slate-950/60 border-slate-800 text-white focus:border-blue-500" : "bg-slate-50 border-slate-300 focus:border-blue-500"}`}
+                className={`w-full px-3.5 py-2.5 rounded-xl text-sm border outline-none transition-all ${isDark ? "bg-slate-950/60 border-slate-800 text-white focus:border-blue-500" : "bg-slate-50 border-slate-300 text-slate-900 focus:border-blue-500"}`}
               />
             </div>
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Utility Type</label>
+              <label className={`block text-xs font-bold uppercase tracking-wider mb-1 ${isDark ? "text-slate-400" : "text-slate-600"}`}>Utility Type</label>
               <select
                 value={utilityType}
                 onChange={(e) => setUtilityType(e.target.value)}
-                className={`w-full px-3.5 py-2.5 rounded-xl text-sm border outline-none transition-all ${isDark ? "bg-slate-950/60 border-slate-800 text-white focus:border-blue-500" : "bg-slate-50 border-slate-300 focus:border-blue-500"}`}
+                className={`w-full px-3.5 py-2.5 rounded-xl text-sm border outline-none transition-all ${isDark ? "bg-slate-950/60 border-slate-800 text-white focus:border-blue-500" : "bg-slate-50 border-slate-300 text-slate-900 focus:border-blue-500"}`}
               >
                 <option value="Electricity">Electricity</option>
                 <option value="Water Supply">Water Supply</option>
@@ -119,7 +116,7 @@ export default function ManualOverrideModal({ theme, t, onClose, onSuccess }: Ma
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Bill Amount (₹)</label>
+              <label className={`block text-xs font-bold uppercase tracking-wider mb-1 ${isDark ? "text-slate-400" : "text-slate-600"}`}>Bill Amount (₹)</label>
               <input
                 type="number"
                 step="0.01"
@@ -127,29 +124,29 @@ export default function ManualOverrideModal({ theme, t, onClose, onSuccess }: Ma
                 placeholder="0.00"
                 value={billAmount}
                 onChange={(e) => setBillAmount(e.target.value)}
-                className={`w-full px-3.5 py-2.5 rounded-xl text-sm border outline-none transition-all ${isDark ? "bg-slate-950/60 border-slate-800 text-white focus:border-blue-500" : "bg-slate-50 border-slate-300 focus:border-blue-500"}`}
+                className={`w-full px-3.5 py-2.5 rounded-xl text-sm border outline-none transition-all ${isDark ? "bg-slate-950/60 border-slate-800 text-white focus:border-blue-500" : "bg-slate-50 border-slate-300 text-slate-900 focus:border-blue-500"}`}
               />
             </div>
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Units Consumed (KPI)</label>
+              <label className={`block text-xs font-bold uppercase tracking-wider mb-1 ${isDark ? "text-slate-400" : "text-slate-600"}`}>Units Consumed (KPI)</label>
               <input
                 type="number"
                 step="0.01"
                 placeholder="e.g. 150 kWh"
                 value={unitsConsumed}
                 onChange={(e) => setUnitsConsumed(e.target.value)}
-                className={`w-full px-3.5 py-2.5 rounded-xl text-sm border outline-none transition-all ${isDark ? "bg-slate-950/60 border-slate-800 text-white focus:border-blue-500" : "bg-slate-50 border-slate-300 focus:border-blue-500"}`}
+                className={`w-full px-3.5 py-2.5 rounded-xl text-sm border outline-none transition-all ${isDark ? "bg-slate-950/60 border-slate-800 text-white focus:border-blue-500" : "bg-slate-50 border-slate-300 text-slate-900 focus:border-blue-500"}`}
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Billing Month</label>
+              <label className={`block text-xs font-bold uppercase tracking-wider mb-1 ${isDark ? "text-slate-400" : "text-slate-600"}`}>Billing Month</label>
               <select
                 value={billingMonth}
                 onChange={(e) => setBillingMonth(e.target.value)}
-                className={`w-full px-3.5 py-2.5 rounded-xl text-sm border outline-none transition-all ${isDark ? "bg-slate-950/60 border-slate-800 text-white focus:border-blue-500" : "bg-slate-50 border-slate-300 focus:border-blue-500"}`}
+                className={`w-full px-3.5 py-2.5 rounded-xl text-sm border outline-none transition-all ${isDark ? "bg-slate-950/60 border-slate-800 text-white focus:border-blue-500" : "bg-slate-50 border-slate-300 text-slate-900 focus:border-blue-500"}`}
               >
                 {["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"].map((m) => (
                   <option key={m} value={m}>{m}</option>
@@ -157,62 +154,64 @@ export default function ManualOverrideModal({ theme, t, onClose, onSuccess }: Ma
               </select>
             </div>
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Billing Year</label>
+              <label className={`block text-xs font-bold uppercase tracking-wider mb-1 ${isDark ? "text-slate-400" : "text-slate-600"}`}>Billing Year</label>
               <input
                 type="number"
                 required
                 value={billingYear}
                 onChange={(e) => setBillingYear(e.target.value)}
-                className={`w-full px-3.5 py-2.5 rounded-xl text-sm border outline-none transition-all ${isDark ? "bg-slate-950/60 border-slate-800 text-white focus:border-blue-500" : "bg-slate-50 border-slate-300 focus:border-blue-500"}`}
+                className={`w-full px-3.5 py-2.5 rounded-xl text-sm border outline-none transition-all ${isDark ? "bg-slate-950/60 border-slate-800 text-white focus:border-blue-500" : "bg-slate-50 border-slate-300 text-slate-900 focus:border-blue-500"}`}
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Cycle Start Date</label>
+              <label className={`block text-xs font-bold uppercase tracking-wider mb-1 ${isDark ? "text-slate-400" : "text-slate-600"}`}>Cycle Start Date</label>
               <input
                 type="date"
                 value={billingPeriodStart}
                 onChange={(e) => setBillingPeriodStart(e.target.value)}
-                className={`w-full px-3.5 py-2.5 rounded-xl text-sm border outline-none transition-all ${isDark ? "bg-slate-950/60 border-slate-800 text-white focus:border-blue-500" : "bg-slate-50 border-slate-300 focus:border-blue-500"}`}
+                className={`w-full px-3.5 py-2.5 rounded-xl text-sm border outline-none transition-all ${isDark ? "bg-slate-950/60 border-slate-800 text-white focus:border-blue-500" : "bg-slate-50 border-slate-300 text-slate-900 focus:border-blue-500"}`}
               />
             </div>
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Cycle End Date</label>
+              <label className={`block text-xs font-bold uppercase tracking-wider mb-1 ${isDark ? "text-slate-400" : "text-slate-600"}`}>Cycle End Date</label>
               <input
                 type="date"
                 value={billingPeriodEnd}
                 onChange={(e) => setBillingPeriodEnd(e.target.value)}
-                className={`w-full px-3.5 py-2.5 rounded-xl text-sm border outline-none transition-all ${isDark ? "bg-slate-950/60 border-slate-800 text-white focus:border-blue-500" : "bg-slate-50 border-slate-300 focus:border-blue-500"}`}
+                className={`w-full px-3.5 py-2.5 rounded-xl text-sm border outline-none transition-all ${isDark ? "bg-slate-950/60 border-slate-800 text-white focus:border-blue-500" : "bg-slate-50 border-slate-300 text-slate-900 focus:border-blue-500"}`}
               />
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Due Date</label>
-            <input
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              className={`w-full px-3.5 py-2.5 rounded-xl text-sm border outline-none transition-all ${isDark ? "bg-slate-950/60 border-slate-800 text-white focus:border-blue-500" : "bg-slate-50 border-slate-300 focus:border-blue-500"}`}
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={`block text-xs font-bold uppercase tracking-wider mb-1 ${isDark ? "text-slate-400" : "text-slate-600"}`}>Due Date</label>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className={`w-full px-3.5 py-2.5 rounded-xl text-sm border outline-none transition-all ${isDark ? "bg-slate-950/60 border-slate-800 text-white focus:border-blue-500" : "bg-slate-50 border-slate-300 text-slate-900 focus:border-blue-500"}`}
+              />
+            </div>
           </div>
 
-          <div className="flex justify-end space-x-3 pt-4 border-t border-slate-800/60">
+          <div className="flex items-center justify-end space-x-3 pt-4 border-t border-inherit">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl text-xs font-bold border border-slate-700 hover:bg-slate-800 transition-colors"
+              className={`px-4 py-2.5 rounded-xl border text-xs font-semibold transition-colors ${isDark ? "border-slate-700 text-slate-300 hover:bg-slate-800" : "border-slate-300 text-slate-700 hover:bg-slate-100"}`}
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-blue-500/20 transition-all disabled:opacity-50"
+              className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-500/20 transition-all disabled:opacity-50 cursor-pointer"
             >
-              {submitting ? "Saving..." : "Save Entry"}
+              {submitting ? "Saving Entry..." : "Save Bill Entry"}
             </button>
           </div>
         </form>

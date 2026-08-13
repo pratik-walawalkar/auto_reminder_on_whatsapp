@@ -48,3 +48,13 @@ export interface YoYMonthlyData {
   total_amount: number;
   total_units: number;
 }
+
+// Add this to your frontend types file (e.g., types/reminders.ts)
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  start: string;
+  end?: string;
+  allDay: boolean;
+  type: 'family' | 'individual' | 'system';
+}

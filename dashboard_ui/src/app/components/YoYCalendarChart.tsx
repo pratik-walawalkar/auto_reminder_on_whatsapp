@@ -4,7 +4,7 @@ import { BillRecord } from "../types";
 
 interface YoYCalendarChartProps {
   history: BillRecord[];
-  theme: "dark" | "light";
+  theme: "dark" | "light" | "system";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   t: any;
   onSelectMonthFilter?: (month: string, year: number) => void;

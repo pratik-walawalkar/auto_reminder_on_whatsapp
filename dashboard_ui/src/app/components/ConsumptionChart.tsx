@@ -3,7 +3,7 @@ import { BillRecord } from "../types";
 
 interface ConsumptionChartProps {
   history: BillRecord[];
-  theme: "dark" | "light";
+  theme: "dark" | "light" | "system";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   t: any;
   selectedYear: string;

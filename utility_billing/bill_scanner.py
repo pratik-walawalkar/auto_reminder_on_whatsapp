@@ -412,7 +412,7 @@ def retry_failed_notifications(matrix_rules):
     # Query database for un-sent alerts
     # --- FIX: EXPANDED QUERY TO LOOK FOR BOTH FALSE AND UN-INITIALIZED NULL VALS ---
     cur.execute("""
-        SELECT provider_name, bill_amount, due_date, billing_period_start, billing_period_end, units_consumed
+        SELECT id, provider_name, bill_amount, due_date, billing_period_start, billing_period_end, units_consumed
         FROM utility_billing_history 
         WHERE notified_received IS NOT TRUE LIMIT 5;
     """)
@@ -428,7 +428,7 @@ def retry_failed_notifications(matrix_rules):
     target_group = matrix_rules.get("billing_rules", {}).get("target_group")
     
     for row in failed_rows:
-        provider, amount, due_date, s_date, e_date, units = row
+        row_id, provider, amount, due_date, s_date, e_date, units = row
         
         # Pull baseline metrics for KPI rendering
         kpi_delta = calculate_historical_kpis(cur, provider, float(units or 0), s_date)
@@ -436,11 +436,11 @@ def retry_failed_notifications(matrix_rules):
         
         whatsapp_body = f"🔄 *[RETRY QUEUE]*\n" + format_whatsapp_kpi_message(provider, bill_data, kpi_delta)
         
-        if whatsapp_utils.send_whatsapp_message(target_group, whatsapp_body):
+    if whatsapp_utils.send_whatsapp_message(target_group, whatsapp_body):
             cur.execute("""
                 UPDATE utility_billing_history SET notified_received = TRUE 
-                WHERE provider_name = %s AND billing_period_start = %s AND billing_period_end = %s
-            """, (provider, s_date, e_date))
+                WHERE id = %s
+            """, (row_id,))
             conn.commit()
             print(f"✅ Retry Success: Cleared pending alert flag for {provider}.")
             time.sleep(3) # Safe anti-spam interval pause

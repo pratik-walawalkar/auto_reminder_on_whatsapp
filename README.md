@@ -1,3 +1,47 @@
+# Comprehensive System Documentation & Product Requirements Document (PRD)
+
+This document provides the definitive specifications, architectural blueprint, and functional requirements for the **Headless WhatsApp Calendar & Contacts Automation System** and its associated web management dashboard. Designed with enterprise-grade robustness and optimized for minimal resource utilization, this specification incorporates all recent user feedback, design enhancements, and architectural upgrades.
+
+---
+
+## Part 1: System Overview & Architecture
+
+### Core Purpose
+
+The system is a highly optimized, resource-friendly Python automation pipeline that fetches calendar events and birthday contacts from Google Workspace APIs and dispatches dynamic notifications to WhatsApp. It replaces fragile browser-automation wrappers (like Selenium or WebDriver) with a persistent local **Evolution API** socket engine running via Docker.
+
+### Directory Structure & Layout
+
+The project repository follows a strictly organized layout to ensure relative path resolution and container data persistence:
+
+```text
+auto_reminder_on_whatsapp/
+│
+├── evolution_db_data/         # Isolated PostgreSQL data volume[cite: 35]
+├── evolution_instances/       # Persistent WhatsApp session keys storage[cite: 35]
+│
+├── backend_api/               # FastAPI core backend service
+│   ├── main.py                # API endpoints and request handlers
+│   └── ...
+├── frontend/                  # Next.js web application (pages.tsx, globals.css)
+│   ├── pages.tsx              # Dashboard interface views
+│   └── globals.css            # Custom theme styles and sporty highlights
+│
+├── .env                       # Local environment configuration keys[cite: 35]
+├── client_secret.json         # Google Workspace OAuth 2.0 application credentials[cite: 35]
+├── token.json                 # Combined Google API OAuth session tokens[cite: 35]
+├── routing_matrix.json        # Central routing configuration registry[cite: 35]
+│
+├── whatsapp_utils.py          # Shared helper modules and API gateway connections[cite: 35]
+├── family_reminders.py        # Automation loop for family calendar rules[cite: 35]
+├── individual_reminders.py    # Automation loop for personal and birthday rules[cite: 35]
+│
+└── run_all_reminders.bat      # Orchestrated master Windows batch launcher[cite: 35]
+
+```
+
+---
+
 # Headless WhatsApp Calendar & Contacts Automation System 🚀
 
 A highly optimized, resource-friendly Python automation pipeline that fetches calendar events and birthday contacts from Google Workspace APIs and dispatches dynamic notifications to WhatsApp. 
@@ -176,12 +220,12 @@ Because the backend container runs headlessly, authenticate and link your accoun
 1. **Initialize the background instance configuration:**
 ```powershell
 $headers = @{
-    "apikey" = "MySecurePythonApiKey123"
+    "apikey" = "MySecurePythonApiKey12345"
     "Content-Type" = "application/json"
 }
 $body = @{
     "instanceName" = "my_personal_session"
-    "token" = "MySecurePythonApiKey123"
+    "token" = "MySecurePythonApiKey12345"
 } | ConvertTo-Json
 
 Invoke-RestMethod -Method Post -Uri "http://localhost:8080/instance/create" -Headers $headers -Body $body
@@ -305,3 +349,31 @@ exit
 ### 🔴 Problem: `HTTPConnectionPool Read Timed Out`
 * **Cause:** The API engine takes slightly longer than the predefined script timeout parameter to respond during heavy startup data syncs or message queue spikes.
 * **Resolution:** Locate the `requests.post()` structure inside your local utility code and gracefully elevate the threshold settings array block to a longer window buffer (`timeout=45`).
+
+
+https://gist.github.com/pratik-walawalkar/73c925a23497fb36830eb86a10486ff7
+
+The above gist link contains pags.tsx, main.py and globals.css files at the latest state.
+I want you to check for the following points:
+* Check and correct the alignment of all the structural elements / Boxes and others.
+* The window must be wide and efficiently used.
+* Check and validate The functionality of all the buttons and make the correction if necessary.
+* The entry forms must have all the fields necessary to fill all the columns in the table.
+* I dont know if the form in "Ingesting staging portal" is necessary, if not then it can be removed or modified. 
+* Instead improve the drag and drop feature.  With respect to the requiemnets I had mentioned earlier. ut we need to have the button to commit or add the data extracted from the input file.
+* I wish to have colored sporty highlights on the left edge of the metadata box
+* "IMPORTANT!!!" this website needs to be actively on mobile, hence it must be equaly readable, accissible, modlarize and viewable on mobile.
+* Dark and ligh theme must be equally impressive, stunning, beautifule, easy on eyes and elegant.
+* The font must be large enough to be able to read comfortaly. Currrently, apart form the maeta data nmbers, everzthing else is very small.
+* WE can collaps the months on YoY matrix into years, which can be expanded when we click on it. If all the bills are paid then the year must e highlighted in green, if anz month is unpaid then in red, and if the bills are missing then in yellow. Or maybe we can also have some indication on month boxes to denote which bills are available for the months. MGL bills are received every 2 month, and other sare every 1 month (Just for you information).  Enhance it feature wise according to your researched knowledge.
+* I am not very adament on using the navy bblue/saphire theme, if whe have any better theme in dark and light, I can have a look at that as well. The Dark theme we currently have for this AI mode google page  is great.
+* Make sure that the manual override form has all the fields reqired to populat the table.
+* Check if everything is working fine.
+* Check if all the variables are correct, no error, no missing definition.
+* Try to identify a better approach to tag billing month, month 1, month 2 is good and easy to read, understand. But it could be better I we can somhow include year too  to make the billing month uniquely identifiable
+* If you have any other suggestion or improvement point, let me know. We can implemnet that aswell.
+
+* Create a TODO for all the points I mentioned above to make sure that you address and validate all the above points and nothing is missed out
+* Consider using deep thinking and act like a Software engineer with 20+ years of experience. And have very good artestic sense of color.
+* SInce it will be a long code generation, generate in mltiple parts and make sure that one code block has maximum of 150 lines and stays within the limit of a code block, to make sure that it does not over flows and ruines the syntax 
+*** Overall the system mut be extremely robust and error proof***
