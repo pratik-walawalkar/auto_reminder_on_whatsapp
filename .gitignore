@@ -1,18 +1,59 @@
 # Private Environment Keys
 .env
+.env.*
 *.env
+*.local
+.vscode/
 
-# Google API Authentication Tokens
-token.json
+# Google / WhatsApp / Immich credentials
+token*.json
 client_secret.json
+client_secret*.json
+config/routing_matrix.json
+config/*.local.json
+reminder_config.json
+reminders_log.json
+utility_state.json
+utility_billing/*.json
+*.pem
+*.key
 
 # Local Docker Data Storage Folders (Crucial!)
 evolution_db_data/
 evolution_instances/
+downloaded_bills/
+manual_upload_dropzone/
 
-# Python Cache Files
+# Runtime caches and generated files
 __pycache__/
 *.pyc
+*.log
 
-# Local Config Matrix
-routing_matrix.json
+# Node/Next
+node_modules/
+.next/
+out/
+build/
+dashboard_ui/node_modules/
+dashboard_ui/.next/
+dashboard_ui/out/
+dashboard_ui/build/
+dashboard_ui/.env*.local
+dashboard_ui/npm-debug.log*
+
+# Backend runtime
+backend_api/__pycache__/
+backend_api/*.pyc
+backend_api/.pytest_cache/
+backend_api/venv/
+backend_api/.venv/
+backend_api/env/
+backend_api/*.db
+backend_api/*.sqlite3
+backend_api/pg_data/
+
+# Local database dumps and lock files
+evolution_db_data/
+evolution_db_data/**
+*.sqlite3
+*.db

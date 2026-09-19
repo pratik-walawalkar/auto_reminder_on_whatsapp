@@ -30,7 +30,7 @@ auto_reminder_on_whatsapp/
 ├── .env                       # Local environment configuration keys[cite: 35]
 ├── client_secret.json         # Google Workspace OAuth 2.0 application credentials[cite: 35]
 ├── token.json                 # Combined Google API OAuth session tokens[cite: 35]
-├── routing_matrix.json        # Central routing configuration registry[cite: 35]
+├── config/routing_matrix.json        # Central routing configuration registry[cite: 35]
 │
 ├── whatsapp_utils.py          # Shared helper modules and API gateway connections[cite: 35]
 ├── family_reminders.py        # Automation loop for family calendar rules[cite: 35]
@@ -63,7 +63,7 @@ auto_reminder_on_whatsapp/
 ├── .env                       # Local environment variables (API keys and endpoints)
 ├── client_secret.json         # Google Workspace OAuth 2.0 application credentials
 ├── token.json                 # Automatically created (Stores combined Google API OAuth tokens)
-├── routing_matrix.json        # Maps specific calendars to unique WhatsApp destinations
+├── config/routing_matrix.json        # Maps specific calendars to unique WhatsApp destinations
 │
 ├── whatsapp_utils.py          # Shared helper modules (API gateway connections, human emulation)
 ├── family_reminders.py        # Automation loop file handling group messaging rules
@@ -78,7 +78,7 @@ auto_reminder_on_whatsapp/
 * **`.env`**: Keeps structural configuration strings and server keys separate from your application logic.
 * **`client_secret.json`**: The security passport file downloaded from your Google Cloud Console.
 * **`token.json`**: Generated automatically on your first execution. It saves combined Google Calendar and People API permissions so background scripts can pull entries hands-free.
-* **`routing_matrix.json`**: The central routing logic registry linking distinct Google IDs to unique lines or group chats.
+* **`config/routing_matrix.json`**: The central routing logic registry linking distinct Google IDs to unique lines or group chats.
 
 ---
 
@@ -104,7 +104,7 @@ __pycache__/
 *.pyc
 
 # Local Config Matrix
-routing_matrix.json
+config/routing_matrix.json
 ```
 
 ---
@@ -136,7 +136,7 @@ Your local scripts need explicit clearance to query your calendar and contacts d
 5. Navigate to the **Credentials** tab, click **Create Credentials** -> **OAuth Client ID** (Select **Desktop App** as application type).
 6. Download the resulting JSON file, rename it exactly to `client_secret.json`, and save it inside your project root folder.
 
-### Step 4.2: Map the Target Registry (`routing_matrix.json`)
+### Step 4.2: Map the Target Registry (`config/routing_matrix.json`)
 Drop your targeted WhatsApp structural identifiers directly into your routing file template:
 * **Groups:** Long numerical serial identifiers ending in `@g.us`.
 * **Numbers:** Standard international numbers or personal contacts ending in `@c.us`.
@@ -220,12 +220,12 @@ Because the backend container runs headlessly, authenticate and link your accoun
 1. **Initialize the background instance configuration:**
 ```powershell
 $headers = @{
-    "apikey" = "MySecurePythonApiKey12345"
+    "apikey" = "MySecurePythonApiKey123"
     "Content-Type" = "application/json"
 }
 $body = @{
     "instanceName" = "my_personal_session"
-    "token" = "MySecurePythonApiKey12345"
+    "token" = "MySecurePythonApiKey123"
 } | ConvertTo-Json
 
 Invoke-RestMethod -Method Post -Uri "http://localhost:8080/instance/create" -Headers $headers -Body $body
