@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#06070f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Family Vault</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script>
+    (function () {
+      var stored = localStorage.getItem('familyVaultTheme');
+      var theme = stored || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
+</head>
+<body>
+  <div class="aurora" aria-hidden="true"></div>
+  <main id="app" aria-live="polite">
+    <section id="loginView" class="auth-card">
+      <p class="eyebrow">PRIVATE FAMILY ARCHIVE</p>
+      <h1>Family Vault</h1>
+      <p>Sign in to explore and preserve your shared family history.</p>
+      <form id="loginForm" class="form-stack">
+        <label>Username<input name="username" autocomplete="username" required></label>
+        <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+        <button type="submit">Sign in</button>
+        <p id="loginError" class="error" hidden></p>
+      </form>
+    </section>
+
+    <section id="vaultView" hidden>
+      <header class="topbar">
+        <div><p class="eyebrow">PRIVATE FAMILY ARCHIVE</p><h1>Family Vault</h1></div>
+        <div class="header-actions">
+          <span id="userName"></span>
+          <button id="themeToggle" class="icon-toggle" type="button" aria-label="Toggle light and dark theme">🌙</button>
+          <a class="button-link secondary" href="/help">Help &amp; guide</a>
+          <button id="reviewButton" class="secondary" hidden>Review proposals</button>
+          <button id="usersButton" class="secondary" hidden>Manage users</button>
+          <a id="exportGedcomButton" class="button-link secondary" href="/api/export/gedcom" hidden>Export GEDCOM</a>
+          <button id="logoutButton" class="secondary">Sign out</button>
+        </div>
+      </header>
+      <section class="controls">
+        <label class="search-label">Search<input id="searchInput" type="search" placeholder="Find a family member"></label>
+        <label class="timeline-label">View up to <input id="yearSlider" type="range"><strong id="yearLabel"></strong></label>
+        <button id="resetView" class="secondary">Reset view</button>
+        <button id="addButton">+ Add family member</button>
+      </section>
+      <section id="status" class="status" hidden></section>
+      <section id="treeViewport" aria-label="Interactive family knowledge graph">
+        <svg width="0" height="0" style="position:absolute">
+          <defs>
+            <linearGradient id="edgeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:var(--accent)"></stop>
+              <stop offset="50%" style="stop-color:var(--accent-2)"></stop>
+              <stop offset="100%" style="stop-color:var(--accent-3)"></stop>
+            </linearGradient>
+          </defs>
+        </svg>
+        <div id="treeCanvas"></div>
+      </section>
+    </section>
+  </main>
+
+  <aside id="sidePanel" class="side-panel" hidden aria-label="Family member panel"><button class="close-sheet" data-close="sidePanel" aria-label="Close">×</button><div id="sidePanelContent"></div></aside>
+  <div id="sidePanelBackdrop" class="side-panel-backdrop" hidden data-close="sidePanel"></div>
+  <aside id="reviewSheet" class="sheet" hidden aria-label="Proposal review"><div class="sheet-panel"><button class="close-sheet" data-close="reviewSheet" aria-label="Close">×</button><div id="reviewContent"></div></div></aside>
+  <script src="/static/app.js"></script>
+</body>
+</html>

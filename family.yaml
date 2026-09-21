@@ -1,0 +1,74 @@
+version: '3.0'
+schema_revision: '2026-09-21'
+metadata:
+  last_updated: '2026-09-21T11:30:17Z'
+  system_engine: FamilyVault-local
+  family_root_surname: YourSurname
+configuration:
+  render_options:
+    default_layout: TD
+    show_historical_tags: true
+    enable_mumbai_mapping: true
+individuals:
+- id: vithal_1895_g0
+  first_name: Vithal
+  middle_name: Ramesh
+  last_name: Surname
+  gender: M
+  generation: G0
+  vital_events:
+    birth:
+      date: '1895'
+      is_approximate: true
+      location: Alibag, Konkan Region, Maharashtra
+    death:
+      date: '1962'
+      location: Girgaon, Mumbai
+  cultural_metadata:
+    gotra_clan: Vashishta
+    native_village: Alibag
+    community_caste: Saraswat
+  migration_history:
+  - year: 1922
+    from: Alibag
+    to: Chawl No. 4, Girgaon, Mumbai
+    reason: Textile Mill Employment
+  biographical_notes: Deeply religious, managed local community library in South Mumbai.
+- id: laxmi_1902_g0
+  first_name: Laxmi
+  middle_name: Vithal
+  last_name: Surname
+  gender: F
+  generation: G0
+  vital_events:
+    birth:
+      date: '1902'
+      location: Satara, Maharashtra
+- id: ramesh_1935_g1
+  first_name: Ramesh
+  middle_name: Vithal
+  last_name: Surname
+  gender: M
+  generation: G1
+  vital_events:
+    birth:
+      date: '1935-04-12'
+      location: Girgaon, Mumbai
+- first_name: Pratik
+  last_name: Walawalkar
+  gender: M
+  vital_events:
+    birth:
+      date: unknown
+      location: ''
+  id: pratik_1996
+unions:
+- id: union_vithal_laxmi_1918
+  partners:
+  - individual_id: vithal_1895_g0
+  - individual_id: laxmi_1902_g0
+  union_type: marriage
+  start_date: '1918'
+  children:
+  - individual_id: ramesh_1935_g1
+    link_type: biological

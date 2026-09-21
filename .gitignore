@@ -1,0 +1,20 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+family_vault.db
+family_vault.db-*
+.env
+.beacon/
+
+# Superseded GitHub-Pages prototype and one-off planning material; the live
+# app is server.py + templates/ + static/, documented in docs/DEVELOPER_GUIDE.md.
+index.html
+prompt.txt
+family_tree_blueprint.md
+
+# Gramps Web reference material (read-only research, not a project dependency).
+gramps-web-main.zip
+gramps-web-api-master.zip
+gramps-web-reference/
+gramps-web-api-reference/

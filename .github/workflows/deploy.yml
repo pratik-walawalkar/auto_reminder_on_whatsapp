@@ -1,0 +1,31 @@
+name: Family Vault Validation
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Validate family ledger and documentation
+        run: |
+          python ingest.py validate
+          test -f REQUIREMENTS_AND_USE_CASES.md
+          test -f docs/USER_GUIDE.md
+          test -f docs/DEVELOPER_GUIDE.md
+      - name: Run application tests
+        run: python -m pytest -p no:cacheprovider
+      - name: Check frontend JavaScript syntax
+        run: node --check static/app.js
