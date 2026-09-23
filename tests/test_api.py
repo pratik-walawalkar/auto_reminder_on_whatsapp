@@ -38,6 +38,41 @@ def test_help_requires_authentication_and_renders_user_guide(client, member_toke
     assert b"<script" not in response.data
 
 
+def test_shell_exposes_viewport_controls_and_consolidated_search(client):
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert b'class="header-search"' in response.data
+    assert b'id="searchInput"' in response.data
+    assert b'id="organicView"' in response.data
+    assert b'id="classicView"' in response.data
+
+
+def test_shell_documents_same_tier_spouse_layout():
+    response = server.app.test_client().get("/")
+
+    assert response.status_code == 200
+    source = response.data.decode()
+    assert "Classic Tree" in source
+
+
+def test_classic_tree_uses_union_hubs_with_straight_edges_and_manual_layout():
+    source = server.app.test_client().get("/static/app.js").data.decode()
+
+    # Union hubs still route two-parent families through an invisible junction node.
+    assert "const intersectionId = `union_${group.parentIds.join('_')}`" in source
+    assert "edgeKind: 'union'" in source
+    assert "edgeKind: 'parent'" in source
+    # Classic mode must keep vis-network's own hierarchical layout and physics OFF so
+    # our manually computed x/y coordinates from computeLayout() are not overridden.
+    assert "layout: {hierarchical: {enabled: false}}" in source
+    assert "physics: classicTree ? {enabled: false}" in source
+    # Classic mode edges are straight (no smoothing), matching the pedigree-chart look.
+    assert "smooth: classicTree ? {enabled: false}" in source
+    assert "scale: Math.max(network.getScale(), 0.82)" in source
+
+
+
 def test_family_requires_authentication_and_returns_public_data(client, member_token):
     unauthenticated_client = server.app.test_client()
     assert unauthenticated_client.get("/api/family").status_code == 401
@@ -143,7 +178,7 @@ def test_admin_approval_updates_yaml_and_marks_proposal(client, member_token, pr
 
 
 def test_admin_approval_can_link_new_child_to_existing_union(client, member_token, proposed_person):
-    proposed_person.update({"relationship": "child_of_union", "union_id": "union_vithal_laxmi_1918"})
+    proposed_person.update({"relationship": "child_of", "relative_id": "vithal_1895_g0"})
     proposal_id = create_add_proposal(client, member_token, proposed_person)
     admin_token = login(client, "adminuser", "admin-password-123")
 
@@ -152,6 +187,96 @@ def test_admin_approval_can_link_new_child_to_existing_union(client, member_toke
     assert response.status_code == 200
     union = data_store.load_family()["unions"][0]
     assert {"individual_id": "meera_1980_g2", "link_type": "biological"} in union["children"]
+
+
+def test_admin_approval_can_link_new_spouse_to_existing_person(client, member_token, proposed_person):
+    proposed_person.update({"relationship": "spouse_of", "relative_id": "ramesh_1935_g1"})
+    proposal_id = create_add_proposal(client, member_token, proposed_person)
+    admin_token = login(client, "adminuser", "admin-password-123")
+
+    response = client.post(f"/api/proposals/{proposal_id}/approve", json={}, headers=csrf(admin_token))
+
+    assert response.status_code == 200
+    family = data_store.load_family()
+    union = next(u for u in family["unions"] if {"individual_id": "meera_1980_g2"} in u["partners"])
+    assert {"individual_id": "ramesh_1935_g1"} in union["partners"]
+
+
+def test_admin_approval_can_link_new_parent_to_existing_person(client, member_token, proposed_person):
+    proposed_person.update({"relationship": "parent_of", "relative_id": "vithal_1895_g0"})
+    proposal_id = create_add_proposal(client, member_token, proposed_person)
+    admin_token = login(client, "adminuser", "admin-password-123")
+
+    response = client.post(f"/api/proposals/{proposal_id}/approve", json={}, headers=csrf(admin_token))
+
+    assert response.status_code == 200
+    family = data_store.load_family()
+    union = next(u for u in family["unions"] if {"individual_id": "vithal_1895_g0", "link_type": "biological"} in u["children"])
+    assert any(p["individual_id"] == "meera_1980_g2" for p in union["partners"])
+
+
+def test_edit_proposal_can_rewire_relationship_anytime(client, admin_token):
+    # Admin proposals apply immediately, no separate approval step required.
+    response = client.post(
+        "/api/proposals",
+        json={
+            "kind": "edit",
+            "target_id": "ramesh_1935_g1",
+            "person": {
+                "first_name": "Ramesh",
+                "last_name": "Surname",
+                "gender": "M",
+                "birth_date": "1935-04-12",
+                "relationship": "child_of",
+                "relative_id": "laxmi_1902_g0",
+            },
+        },
+        headers=csrf(admin_token),
+    )
+
+    assert response.status_code == 201
+    assert response.get_json()["status"] == "approved"
+    family = data_store.load_family()
+    union = next(u for u in family["unions"] if {"individual_id": "ramesh_1935_g1", "link_type": "biological"} in u["children"])
+    assert any(p["individual_id"] == "laxmi_1902_g0" for p in union["partners"])
+
+
+def test_admin_add_proposal_is_auto_approved_without_review(client, admin_token, proposed_person):
+    response = client.post("/api/proposals", json={"kind": "add", "person": proposed_person}, headers=csrf(admin_token))
+
+    assert response.status_code == 201
+    body = response.get_json()
+    assert body["status"] == "approved"
+    assert body["backup"]
+    assert any(person["id"] == proposed_person["id"] for person in data_store.load_family()["individuals"])
+    with server.db() as connection:
+        proposal = connection.execute("SELECT status, reviewed_by FROM proposals WHERE id = ?", (body["id"],)).fetchone()
+    assert dict(proposal) == {"status": "approved", "reviewed_by": "adminuser"}
+
+
+def test_spouse_of_relationship_links_both_partners_into_the_same_union(client, member_token, proposed_person):
+    proposed_person.update({"relationship": "spouse_of", "relative_id": "ramesh_1935_g1"})
+    proposal_id = create_add_proposal(client, member_token, proposed_person)
+    admin_token = login(client, "adminuser", "admin-password-123")
+
+    client.post(f"/api/proposals/{proposal_id}/approve", json={}, headers=csrf(admin_token))
+
+    family = data_store.load_family()
+    union = next(u for u in family["unions"] if {"individual_id": "meera_1980_g2"} in u["partners"])
+    partner_ids = {partner["individual_id"] for partner in union["partners"]}
+    assert partner_ids == {"meera_1980_g2", "ramesh_1935_g1"}
+
+
+def test_child_of_with_co_parent_links_both_parents_together_and_to_the_child(client, admin_token, proposed_person):
+    proposed_person.update({"relationship": "child_of", "relative_id": "pranay_walawalkar", "co_parent_id": "saloni_walawalkar"})
+
+    response = client.post("/api/proposals", json={"kind": "add", "person": proposed_person}, headers=csrf(admin_token))
+
+    assert response.status_code == 201
+    family = data_store.load_family()
+    union = next(u for u in family["unions"] if {"individual_id": "meera_1980_g2", "link_type": "biological"} in u["children"])
+    partner_ids = {partner["individual_id"] for partner in union["partners"]}
+    assert partner_ids == {"pranay_walawalkar", "saloni_walawalkar"}
 
 
 def test_add_proposal_without_id_generates_stable_id_from_name(client, member_token):
@@ -195,6 +320,7 @@ def test_add_proposal_generates_unique_id_on_name_collision(client, member_token
 
 
 def test_edit_proposal_preserves_migration_history_not_present_in_form(client, admin_token):
+    # Admin edits apply immediately, no separate approval step required.
     response = client.post(
         "/api/proposals",
         json={
@@ -204,22 +330,20 @@ def test_edit_proposal_preserves_migration_history_not_present_in_form(client, a
         },
         headers=csrf(admin_token),
     )
-    proposal_id = response.get_json()["id"]
 
-    approval = client.post(f"/api/proposals/{proposal_id}/approve", json={}, headers=csrf(admin_token))
-
-    assert approval.status_code == 200
+    assert response.status_code == 201
+    assert response.get_json()["status"] == "approved"
     updated = next(item for item in data_store.load_family()["individuals"] if item["id"] == "vithal_1895_g0")
     assert updated["migration_history"][0]["to"] == "Chawl No. 4, Girgaon, Mumbai"
 
 
-def test_member_proposal_rejects_unknown_parent_union(client, member_token, proposed_person):
-    proposed_person.update({"relationship": "child_of_union", "union_id": "unknown_union"})
+def test_member_proposal_rejects_unknown_relative(client, member_token, proposed_person):
+    proposed_person.update({"relationship": "child_of", "relative_id": "does_not_exist"})
 
     response = client.post("/api/proposals", json={"kind": "add", "person": proposed_person}, headers=csrf(member_token))
 
     assert response.status_code == 400
-    assert response.get_json()["error"] == "Choose an existing parents' family unit."
+    assert response.get_json()["error"] == "Choose a valid, existing family member to link to."
 
 
 def test_admin_rejection_leaves_yaml_unchanged_and_marks_proposal(client, member_token, proposed_person):
@@ -250,12 +374,11 @@ def test_member_can_submit_delete_proposal_and_admin_can_approve_it(client, memb
 
 
 def test_delete_proposal_detaches_person_from_unions_and_drops_empty_unions(client, admin_token):
-    proposal = client.post("/api/proposals", json={"kind": "delete", "target_id": "laxmi_1902_g0"}, headers=csrf(admin_token))
-    proposal_id = proposal.get_json()["id"]
+    # Admin deletions apply immediately, no separate approval step required.
+    response = client.post("/api/proposals", json={"kind": "delete", "target_id": "laxmi_1902_g0"}, headers=csrf(admin_token))
 
-    response = client.post(f"/api/proposals/{proposal_id}/approve", json={}, headers=csrf(admin_token))
-
-    assert response.status_code == 200
+    assert response.status_code == 201
+    assert response.get_json()["status"] == "approved"
     family = data_store.load_family()
     assert all(person["id"] != "laxmi_1902_g0" for person in family["individuals"])
     for union in family["unions"]:

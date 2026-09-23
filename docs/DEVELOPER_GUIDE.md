@@ -129,6 +129,12 @@ The resulting file imports into Gramps, Ancestry, MyHeritage, or any other GEDCO
 
 Theme: `data-theme="dark"|"light"` on `<html>` selects the token block in `static/app.css`; `applyTheme`/`toggleTheme` in `app.js` persist the choice to `localStorage` (`familyVaultTheme`) and default to the OS preference via `prefers-color-scheme` on first load. An inline blocking script in `templates/shell.html` sets the attribute before first paint to avoid a flash of the wrong theme; `templates/help.html` intentionally has no such script or other `<script>` tag (`test_help_requires_authentication_and_renders_user_guide` asserts the guide page ships script-free).
 
+## Frontend layout and view modes
+
+The authenticated shell is a fixed `100vh` flex column: `#vaultView` owns the header, controls, and flexing `#treeViewport`, while `html`/`body`/`#app` suppress page scrolling. Search lives in `.header-search`; `renderTree()` keeps eligible people in the dataset, sets unmatched node/edge opacity to `0.12`, and focuses the first match with `network.focus()`. Clearing the query restores opacity and the normal fit behavior.
+
+`state.viewMode` persists as `familyVaultView` (`organic` or `classic`). Organic uses repulsion physics and permits node dragging. Classic uses the earlier vis-network hierarchical layout with physics disabled, allowing spouse relationships to retain their earlier vertical linkage behavior. Custom SVG curve and moving-dot experiments are disabled.
+
 ## Tests and validation
 
 ```powershell

@@ -25,6 +25,7 @@ def app(monkeypatch, tmp_path, family_data):
     monkeypatch.setattr(data_store, "ROOT", tmp_path)
     monkeypatch.setattr(server, "DATABASE", tmp_path / "family_vault.db")
     monkeypatch.setattr(backup, "DATABASE", tmp_path / "family_vault.db")
+    monkeypatch.setattr(backup, "ROOT", tmp_path)
     monkeypatch.setattr(backup, "BACKUP_DIR", tmp_path / "backups")
     monkeypatch.setattr(backup, "MANIFEST", tmp_path / "backups" / "manifest.json")
     monkeypatch.setenv("FAMILY_VAULT_BACKUP_PASSPHRASE", "test backup passphrase")

@@ -41,6 +41,9 @@ def add_person(payload: dict[str, Any], parent_union_id: str | None = None) -> s
             person[field] = value
     people.append(person)
     if parent_union_id:
+        if not isinstance(parent_union_id, str) or not parent_union_id.strip():
+            raise DataValidationError("parent_union_id must be a non-empty string.")
+        parent_union_id = parent_union_id.strip()
         union = next((item for item in family["unions"] if item["id"] == parent_union_id), None)
         if union is None:
             raise DataValidationError(f"Unknown parent union: {parent_union_id}.")

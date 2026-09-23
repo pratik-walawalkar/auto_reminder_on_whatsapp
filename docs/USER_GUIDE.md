@@ -19,7 +19,8 @@ Contact an administrator if you do not have an account or cannot sign in. There 
 - **Move around:** drag an empty area of the tree.
 - **Zoom:** use your mouse wheel or trackpad. On a touch device, use the browser zoom controls if required; the tree can still be dragged.
 - **Reset view:** select **Reset view** to return to the starting position and zoom.
-- **Search:** type a name in **Search**. Only matching people appear.
+- **Search:** type a name in the **Search** field in the top header. Matching cards stay vivid, unmatched cards and links fade, and the first match is centered automatically. Clear the field to restore the full tree.
+- **View mode:** use **View: Organic | Classic Tree** in the toolbar. Organic is the free-form layout; Classic Tree locks generations into top-down horizontal lanes, keeps spouses side-by-side, and places their children beneath the couple. Double-click a card to open its details.
 - **Time travel:** move **View up to** to show people born on or before a selected year.
 - **Switch theme:** select the sun/moon button in the header to toggle light and dark appearance. Your choice is remembered on this device.
 

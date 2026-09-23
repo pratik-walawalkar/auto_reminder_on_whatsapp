@@ -26,8 +26,11 @@ from data_store import (
     generate_person_id,
     load_family,
     remove_person,
+    resolve_relationship,
     save_family,
 )
+
+RELATIONSHIP_KINDS = {"new_root", "child_of", "parent_of", "spouse_of"}
 
 ROOT = Path(__file__).resolve().parent
 DATABASE = ROOT / "family_vault.db"
@@ -166,13 +169,20 @@ def valid_person_payload(
         if isinstance(payload.get(name), str) and payload[name].strip():
             person[name] = payload[name].strip()
     relationship = payload.get("relationship")
-    if relationship not in {None, "", "new_root", "child_of_union"}:
+    if relationship not in {None, "", "keep", *RELATIONSHIP_KINDS}:
         raise DataValidationError("Choose a valid relationship option.")
-    if relationship == "child_of_union":
-        union_id = payload.get("union_id")
-        if not isinstance(union_id, str) or not union_id.strip():
-            raise DataValidationError("Choose the parents' family unit.")
-        person["_relationship"] = {"type": "child_of_union", "union_id": union_id.strip()}
+    if relationship == "new_root":
+        person["_relationship"] = {"type": "new_root"}
+    elif relationship in {"child_of", "parent_of", "spouse_of"}:
+        relative_id = payload.get("relative_id")
+        if not isinstance(relative_id, str) or not relative_id.strip():
+            raise DataValidationError("Choose the family member this relationship links to.")
+        descriptor = {"type": relationship, "relative_id": relative_id.strip()}
+        if relationship == "child_of":
+            co_parent_id = payload.get("co_parent_id")
+            if isinstance(co_parent_id, str) and co_parent_id.strip():
+                descriptor["co_parent_id"] = co_parent_id.strip()
+        person["_relationship"] = descriptor
     death_date = str(payload.get("death_date", "")).strip()
     death_location = str(payload.get("death_location", "")).strip()
     if death_date:
@@ -210,6 +220,8 @@ def valid_person_payload(
     # Preserve fields the edit form does not expose, so editing never silently discards history.
     if existing_person and existing_person.get("migration_history"):
         person["migration_history"] = existing_person["migration_history"]
+    if existing_person and existing_person.get("position"):
+        person["position"] = existing_person["position"]
     if current_id:
         person["id"] = current_id
     else:
@@ -236,17 +248,16 @@ def apply_proposal(family: dict[str, Any], proposal: sqlite3.Row) -> str:
         relationship = person.pop("_relationship", None)
         people.append(person)
         if relationship:
-            union = next((item for item in family["unions"] if item["id"] == relationship["union_id"]), None)
-            if union is None:
-                raise DataValidationError("The selected parents' family unit no longer exists.")
-            union.setdefault("children", []).append({"individual_id": person["id"], "link_type": "biological"})
+            resolve_relationship(family, person["id"], relationship)
         return person["id"]
     target_id = proposal["target_id"]
     for index, existing in enumerate(people):
         if existing["id"] == target_id:
             replacement = valid_person_payload(payload, current_ids, target_id, existing_person=existing)
-            replacement.pop("_relationship", None)
+            relationship = replacement.pop("_relationship", None)
             people[index] = replacement
+            if relationship:
+                resolve_relationship(family, target_id, relationship)
             return target_id
     raise DataValidationError("The proposed person no longer exists.")
 
@@ -308,6 +319,31 @@ def family():
     return jsonify(data)
 
 
+@app.patch("/api/family/positions")
+@login_required
+@csrf_required
+def update_positions():
+    payload = request.get_json(silent=True) or {}
+    positions = payload.get("positions")
+    if not isinstance(positions, dict) or len(positions) > 1000:
+        return jsonify(error="Positions must be an object."), 400
+    family = load_family()
+    people = {person["id"]: person for person in family["individuals"]}
+    try:
+        for person_id, position in positions.items():
+            if person_id not in people or not isinstance(position, dict) or set(position) != {"x", "y"}:
+                raise DataValidationError("Invalid person position.")
+            x, y = position["x"], position["y"]
+            if isinstance(x, bool) or isinstance(y, bool) or not isinstance(x, (int, float)) or not isinstance(y, (int, float)) or abs(x) > 1000000 or abs(y) > 1000000:
+                raise DataValidationError("Invalid person position.")
+            people[person_id]["position"] = {"x": x, "y": y}
+        save_family(family)
+    except DataValidationError as error:
+        return jsonify(error=str(error)), 400
+    audit("family_positions_updated", {"count": len(positions)})
+    return jsonify(status="saved", count=len(positions))
+
+
 @app.get("/api/export/gedcom")
 @admin_required
 def export_gedcom_route():
@@ -332,30 +368,36 @@ def create_proposal():
     if kind not in {"add", "edit", "delete"} or (kind in {"edit", "delete"} and target_id not in identifiers):
         return jsonify(error="Invalid proposal target."), 400
     if kind == "delete":
-        with db() as connection:
-            cursor = connection.execute(
-                "INSERT INTO proposals (proposer, kind, target_id, payload) VALUES (?, ?, ?, ?)",
-                (actor(), kind, target_id, json.dumps({"id": target_id}, ensure_ascii=False)),
-            )
-        audit("proposal_created", {"proposal_id": cursor.lastrowid, "kind": kind, "target_id": target_id})
-        return jsonify(id=cursor.lastrowid, status="pending", person_id=target_id), 201
-    try:
-        candidate = valid_person_payload(payload.get("person"), identifiers, target_id)
-        if candidate.get("_relationship", {}).get("union_id") not in {None, *(union["id"] for union in family["unions"])}:
-            raise DataValidationError("Choose an existing parents' family unit.")
-    except DataValidationError as error:
-        return jsonify(error=str(error)), 400
-    stored_person = dict(payload["person"])
+        person_id = target_id
+    else:
+        try:
+            candidate = valid_person_payload(payload.get("person"), identifiers, target_id)
+            relationship = candidate.get("_relationship") or {}
+            for key in ("relative_id", "co_parent_id"):
+                linked_id = relationship.get(key)
+                if linked_id is not None and (linked_id not in identifiers or linked_id == target_id):
+                    raise DataValidationError("Choose a valid, existing family member to link to.")
+        except DataValidationError as error:
+            return jsonify(error=str(error)), 400
+        person_id = candidate["id"]
+    stored_person = {"id": target_id} if kind == "delete" else dict(payload["person"])
     if kind == "add":
         # Freeze the generated ID now so it stays stable even if other proposals are approved before this one.
-        stored_person["id"] = candidate["id"]
+        stored_person["id"] = person_id
     with db() as connection:
         cursor = connection.execute(
             "INSERT INTO proposals (proposer, kind, target_id, payload) VALUES (?, ?, ?, ?)",
             (actor(), kind, target_id, json.dumps(stored_person, ensure_ascii=False)),
         )
-    audit("proposal_created", {"proposal_id": cursor.lastrowid, "kind": kind, "target_id": target_id})
-    return jsonify(id=cursor.lastrowid, status="pending", person_id=candidate["id"]), 201
+        proposal_id = cursor.lastrowid
+    audit("proposal_created", {"proposal_id": proposal_id, "kind": kind, "target_id": target_id})
+    # Admins can edit the family tree directly: their own proposals are applied immediately, no self-review needed.
+    if current_user()["role"] == "admin":
+        body, status_code = finalize_proposal(proposal_id, "approve")
+        if status_code != 200:
+            return jsonify(**body), status_code
+        return jsonify(id=proposal_id, status="approved", person_id=person_id, backup=body.get("backup")), 201
+    return jsonify(id=proposal_id, status="pending", person_id=person_id), 201
 
 
 @app.get("/api/proposals")
@@ -366,24 +408,19 @@ def proposals():
     return jsonify(proposals=[dict(row) | {"payload": json.loads(row["payload"])} for row in rows])
 
 
-@app.post("/api/proposals/<int:proposal_id>/<action>")
-@admin_required
-@csrf_required
-def review_proposal(proposal_id: int, action: str):
-    if action not in {"approve", "reject"}:
-        abort(404)
+def finalize_proposal(proposal_id: int, action: str, note: str = "") -> tuple[dict[str, Any], int]:
+    """Apply (or reject) a pending proposal and record the review. Shared by manual review and admin auto-approval."""
     with db() as connection:
         proposal = connection.execute("SELECT * FROM proposals WHERE id = ? AND status = 'pending'", (proposal_id,)).fetchone()
     if proposal is None:
-        return jsonify(error="Pending proposal not found."), 404
-    note = str((request.get_json(silent=True) or {}).get("note", "")).strip()
+        return {"error": "Pending proposal not found."}, 404
     if action == "approve":
         try:
             data = load_family()
             affected_id = apply_proposal(data, proposal)
             save_family(data)
         except DataValidationError as error:
-            return jsonify(error=str(error)), 400
+            return {"error": str(error)}, 400
         details = {"proposal_id": proposal_id, "affected_id": affected_id}
     else:
         details = {"proposal_id": proposal_id}
@@ -402,7 +439,18 @@ def review_proposal(proposal_id: int, action: str):
         except backup.BackupError as error:
             backup_status = f"Backup failed: {error}"
             audit("backup_failed", {"proposal_id": proposal_id, "error": str(error)})
-    return jsonify(status="approved" if action == "approve" else "rejected", backup=backup_status)
+    return {"status": "approved" if action == "approve" else "rejected", "backup": backup_status}, 200
+
+
+@app.post("/api/proposals/<int:proposal_id>/<action>")
+@admin_required
+@csrf_required
+def review_proposal(proposal_id: int, action: str):
+    if action not in {"approve", "reject"}:
+        abort(404)
+    note = str((request.get_json(silent=True) or {}).get("note", "")).strip()
+    body, status_code = finalize_proposal(proposal_id, action, note)
+    return jsonify(**body), status_code
 
 
 def create_user(username: str, display_name: str, password: str, role: str) -> None:
