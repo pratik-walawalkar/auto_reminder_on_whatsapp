@@ -165,11 +165,11 @@ function buildUnionMaps(unions, people) {
 function computeLayout(people, unions, parentsOf, levels) {
   const positions = new Map();
 
-  const COUPLE_VGAP = 90;     // Vertical gap between a partner and their spouse
-  const LEVEL_HEIGHT = 175;   // Vertical gap from a couple down to their children's row
+  const COUPLE_HGAP = 280;    // Horizontal gap between a partner and their spouse (placed side-by-side, creates visible dotted connector)
+  const LEVEL_HEIGHT = 240;   // Vertical gap from a couple down to their children's row
   const NODE_WIDTH = 230;     // Base horizontal slot for a single column (matches card width)
-  const SIBLING_GAP = 60;     // Edge-to-edge gap between adjacent sibling subtrees (tight, like the reference)
-  const ROOT_GAP = 200;       // Extra edge-to-edge gap between separate, unconnected family groups
+  const SIBLING_GAP = 40;     // Edge-to-edge gap between adjacent sibling subtrees (tight, like the reference)
+  const ROOT_GAP = 50;        // Extra edge-to-edge gap between separate, unconnected family groups
   const MARGIN_X = 300;
   const MARGIN_Y = 60;
 
@@ -206,10 +206,8 @@ function computeLayout(people, unions, parentsOf, levels) {
   // that other branch was placed on (see sortKeyFor below), shortening their
   // cross-branch connector instead of leaving it to cut across the whole canvas.
   const positionCouple = (bloodId, spouseId, centerX, y, ownRootIdx) => {
-    let unionY = y;
     let coupleKey = bloodId;
     if (spouseId) {
-      unionY = y + COUPLE_VGAP;
       coupleKey = [bloodId, spouseId].sort().join('|');
     }
 
@@ -235,9 +233,11 @@ function computeLayout(people, unions, parentsOf, levels) {
     if (!kids.length) {
       positions.set(bloodId, {x: Math.round(centerX), y: Math.round(y)});
       if (spouseId) {
-        positions.set(spouseId, {x: Math.round(centerX), y: Math.round(unionY)});
+        // Spouse positioned horizontally to the right of the blood relation, same Y coordinate
+        positions.set(spouseId, {x: Math.round(centerX + COUPLE_HGAP), y: Math.round(y)});
         const unionId = unionOfCouple.get(coupleKey);
-        if (unionId) positions.set(unionId, {x: Math.round(centerX), y: Math.round(unionY)});
+        // Union node sits at the center X between the two spouses
+        if (unionId) positions.set(unionId, {x: Math.round(centerX + COUPLE_HGAP / 2), y: Math.round(y)});
       }
       return;
     }
@@ -256,7 +256,7 @@ function computeLayout(people, unions, parentsOf, levels) {
     });
     totalWidth -= SIBLING_GAP;
 
-    const childY = unionY + LEVEL_HEIGHT;
+    const childY = y + LEVEL_HEIGHT;
     let currentX = centerX - totalWidth / 2;
     const freshCenters = [];
     freshKids.forEach((kidId, idx) => {
@@ -275,9 +275,11 @@ function computeLayout(people, unions, parentsOf, levels) {
     const resolvedCenterX = freshCenters.length ? (Math.min(...freshCenters) + Math.max(...freshCenters)) / 2 : centerX;
     positions.set(bloodId, {x: Math.round(resolvedCenterX), y: Math.round(y)});
     if (spouseId) {
-      positions.set(spouseId, {x: Math.round(resolvedCenterX), y: Math.round(unionY)});
+      // Spouse positioned horizontally to the right of the blood relation, same Y coordinate
+      positions.set(spouseId, {x: Math.round(resolvedCenterX + COUPLE_HGAP), y: Math.round(y)});
       const unionId = unionOfCouple.get(coupleKey);
-      if (unionId) positions.set(unionId, {x: Math.round(resolvedCenterX), y: Math.round(unionY)});
+      // Union node sits at the center X between the two spouses, from which children descend
+      if (unionId) positions.set(unionId, {x: Math.round(resolvedCenterX + COUPLE_HGAP / 2), y: Math.round(y)});
     }
   };
 
@@ -472,7 +474,7 @@ function renderTree() {
       ...(classicTree ? {...initialPosition(person), fixed: {x: true, y: true}} : person.position ? {x: person.position.x, y: person.position.y} : initialPosition(person))
     });
   });
-  // Spouse connectors: short dashed vertical line between a couple's stacked nodes (classic view only).
+  // Spouse connectors: short dashed horizontal line between a couple's side-by-side nodes (classic view only).
   if (classicTree) {
     const drawnCouples = new Set();
     unions.forEach(union => {
