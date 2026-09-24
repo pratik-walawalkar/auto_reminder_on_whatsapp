@@ -181,7 +181,7 @@ function buildUnionMaps(unions, people) {
 function computeLayout(people, unions, parentsOf, levels) {
   const positions = new Map();
 
-    const COUPLE_HGAP = 160;    // Fixed spouse separation; the union midpoint sits 80px from either partner.
+  const COUPLE_HGAP = 260;    // Fixed spouse separation; the union midpoint sits 80px from either partner.
   const LEVEL_HEIGHT = 300;   // Fixed generation-row spacing.
   const NODE_WIDTH = 230;     // Base horizontal slot for a single column (matches card width)
   const SIBLING_GAP = 30;     // Single-node centers are 260px apart.
@@ -1137,39 +1137,83 @@ function closeExportMenu() {
   $('exportDropdownBtn').setAttribute('aria-expanded', 'false');
 }
 
-function triggerSvgExport() {
-  if (!network || !networkNodes) return notice('The tree is still rendering.');
+function exportBounds() {
   const positions = network.getPositions();
   const nodes = networkNodes.get();
-  const edges = networkEdges?.get() || [];
-  const points = Object.values(positions);
-  const minX = Math.min(...points.map(point => point.x), 0) - 140;
-  const minY = Math.min(...points.map(point => point.y), 0) - 60;
-  const maxX = Math.max(...points.map(point => point.x), 0) + 140;
-  const maxY = Math.max(...points.map(point => point.y), 0) + 60;
+  const points = nodes.map(node => positions[node.id]).filter(Boolean);
+  if (!points.length) return null;
+  const halfWidth = 100;
+  const halfHeight = 38;
+  const padding = 48;
+  const minX = Math.floor(Math.min(...points.map(point => point.x - halfWidth)) - padding);
+  const minY = Math.floor(Math.min(...points.map(point => point.y - halfHeight)) - padding);
+  const maxX = Math.ceil(Math.max(...points.map(point => point.x + halfWidth)) + padding);
+  const maxY = Math.ceil(Math.max(...points.map(point => point.y + halfHeight)) + padding);
+  return {positions, nodes, edges: networkEdges?.get() || [], minX, minY, width: maxX - minX, height: maxY - minY};
+}
+
+function triggerSvgExport() {
+  if (!network || !networkNodes) return notice('The tree is still rendering.');
+  const bounds = exportBounds();
+  if (!bounds) return notice('There are no nodes to export.');
+  const {positions, nodes, edges, minX, minY, width, height} = bounds;
   const lineMarkup = edges.map(edge => {
     const from = positions[edge.from];
     const to = positions[edge.to];
-    return from && to ? `<line x1="${from.x - minX}" y1="${from.y - minY}" x2="${to.x - minX}" y2="${to.y - minY}" stroke="#818cf8" stroke-width="2" opacity=".8"/>` : '';
+    if (!from || !to) return '';
+    const label = edge.label ? `<text x="${(from.x + to.x) / 2 - minX}" y="${(from.y + to.y) / 2 - minY - 5}" fill="#94a3b8" font-family="Segoe UI,Arial,sans-serif" font-size="11">${svgEscape(edge.label)}</text>` : '';
+    return `<line x1="${from.x - minX}" y1="${from.y - minY}" x2="${to.x - minX}" y2="${to.y - minY}" stroke="#818cf8" stroke-width="2" opacity=".8"/>${label}`;
   }).join('');
-  const nodeMarkup = nodes.filter(node => positions[node.id] && node.label).map(node => {
+  const nodeMarkup = nodes.filter(node => positions[node.id] && node.image).map(node => {
     const point = positions[node.id];
-    return `<g transform="translate(${point.x - minX},${point.y - minY})"><rect x="-98" y="-30" width="196" height="60" rx="12" fill="#0f172a" stroke="#818cf8" stroke-width="1.6"/><text x="-82" y="4" fill="#f1f5f9" font-family="Arial,sans-serif" font-size="12">${svgEscape(node.label)}</text></g>`;
+    return `<image href="${svgEscape(node.image)}" x="${point.x - minX - 98}" y="${point.y - minY - 30}" width="196" height="60" preserveAspectRatio="none"/>`;
   }).join('');
-  const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX - minX}" height="${maxY - minY}" viewBox="0 0 ${maxX - minX} ${maxY - minY}"><rect width="100%" height="100%" fill="#06070f"/>${lineMarkup}${nodeMarkup}</svg>`;
+  const gridMarkup = `<path d="M0 24H${width} M24 0V${height}" stroke="#1e293b" stroke-width="1" opacity=".35"/>`;
+  const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="#06070f"/>${gridMarkup}${lineMarkup}${nodeMarkup}</svg>`;
   downloadBlob(svgContent, 'family_tree_vault.svg', 'image/svg+xml;charset=utf-8');
   closeExportMenu();
 }
 
-function triggerPngExport() {
+async function triggerPngExport() {
+  if (!network || !networkNodes) return notice('The tree is still rendering.');
+  const bounds = exportBounds();
   const canvas = $('treeCanvas')?.querySelector('canvas');
-  if (!canvas) return notice('The tree is still rendering.');
-  const link = document.createElement('a');
-  link.download = 'family_tree_snapshot.png';
-  link.href = canvas.toDataURL('image/png');
-  link.click();
-  closeExportMenu();
+  if (!bounds || !canvas) return notice('The tree is still rendering.');
+  const container = $('treeCanvas');
+  const previous = {
+    width: container.style.width,
+    height: container.style.height,
+    overflow: container.style.overflow,
+    view: network.getViewPosition(),
+    scale: network.getScale()
+  };
+  try {
+    container.style.width = `${bounds.width}px`;
+    container.style.height = `${bounds.height}px`;
+    container.style.overflow = 'visible';
+    network.setSize(`${bounds.width}px`, `${bounds.height}px`);
+    network.moveTo({position: {x: bounds.minX + bounds.width / 2, y: bounds.minY + bounds.height / 2}, scale: 1, animation: false});
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const activeCanvas = container.querySelector('canvas');
+    const dataUrl = activeCanvas.toDataURL('image/png', 1.0);
+    const link = document.createElement('a');
+    link.href = dataUrl;
+    link.download = 'family_tree_ultra_highres.png';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  } catch (error) {
+    notice(`PNG export failed: ${error.message}`);
+  } finally {
+    container.style.width = previous.width;
+    container.style.height = previous.height;
+    container.style.overflow = previous.overflow;
+    network.setSize('100%', '100%');
+    network.moveTo({position: previous.view, scale: previous.scale, animation: false});
+    closeExportMenu();
+  }
 }
+
 
 async function triggerGedcomExport() {
   try {
