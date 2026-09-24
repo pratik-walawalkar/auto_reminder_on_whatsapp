@@ -104,6 +104,23 @@ let network = null;
 let networkNodes = null;
 let networkEdges = null;
 
+function teardownNetwork() {
+  if (networkNodes) networkNodes.clear();
+  if (networkEdges) networkEdges.clear();
+  if (network) network.destroy();
+  network = null;
+  networkNodes = null;
+  networkEdges = null;
+  state.svgOverlay = null;
+  state.edgeAnimationMap = null;
+  const container = $('treeCanvas');
+  if (container) container.replaceChildren();
+  state.scale = 1;
+  state.x = 40;
+  state.y = 40;
+}
+
+
 function computeDynamicGenerations(people, parentsOf) {
   const levels = new Map();
   const queue = [];
@@ -165,11 +182,11 @@ function buildUnionMaps(unions, people) {
 function computeLayout(people, unions, parentsOf, levels) {
   const positions = new Map();
 
-  const COUPLE_HGAP = 280;    // Horizontal gap between a partner and their spouse (placed side-by-side, creates visible dotted connector)
-  const LEVEL_HEIGHT = 240;   // Vertical gap from a couple down to their children's row
+    const COUPLE_HGAP = 160;    // Fixed spouse separation; the union midpoint sits 80px from either partner.
+  const LEVEL_HEIGHT = 300;   // Fixed generation-row spacing.
   const NODE_WIDTH = 230;     // Base horizontal slot for a single column (matches card width)
-  const SIBLING_GAP = 40;     // Edge-to-edge gap between adjacent sibling subtrees (tight, like the reference)
-  const ROOT_GAP = 50;        // Extra edge-to-edge gap between separate, unconnected family groups
+  const SIBLING_GAP = 30;     // Single-node centers are 260px apart.
+  const ROOT_GAP = 450;       // Minimum isolation buffer between independent branches.
   const MARGIN_X = 300;
   const MARGIN_Y = 60;
 
@@ -430,10 +447,7 @@ function renderTree() {
     const component = componentById.get(person.id) || 0;
     const index = seedCounters.get(component) || 0;
     seedCounters.set(component, index + 1);
-    const parentIds = parentsOf.get(person.id) || [];
-    const parentPositions = parentIds.map(parentId => personById.get(parentId)?.position).filter(Boolean);
-    const x = parentPositions.length ? parentPositions.reduce((sum, position) => sum + position.x, 0) / parentPositions.length : component * 900 + index * 300;
-    return {x, y: (levels.get(person.id) || 0) * 190};
+    return {x: component * 900 + index * 300, y: (levels.get(person.id) || 0) * 300 + 60};
   };
   const nodes = [];
   const edges = [];
@@ -463,7 +477,7 @@ function renderTree() {
       image: nodeCardImage(person, genderColor, levels.get(person.id)),
       brokenImage: nodeCardImage(person, genderColor, levels.get(person.id)),
       shape: 'image',
-      margin: {top: 14, right: 18, bottom: 14, left: 18},
+            margin: 12,
       widthConstraint: {minimum: 190, maximum: 250},
       heightConstraint: {minimum: 72},
       borderWidth: 2,
@@ -474,10 +488,17 @@ function renderTree() {
       chosen: {node: (values, id, selected, hovering) => { values.shadow = true; values.shadowColor = genderColor; values.shadowSize = hovering || selected ? 24 : 14; values.borderWidth = selected ? 3 : 2; }},
       level: levels.get(person.id),
       opacity: !query || matchedIds.has(person.id) ? 1 : 0.12,
-      ...(classicTree ? {...initialPosition(person), fixed: {x: true, y: true}} : person.position ? {x: person.position.x, y: person.position.y} : initialPosition(person))
+      ...(classicTree ? {...initialPosition(person), fixed: {x: true, y: true}} : {})
     });
   });
-  // Spouse connectors: short dashed horizontal line between a couple's side-by-side nodes (classic view only).
+  const organicEdgePhysics = (edgeKind, parentIds = [], childId = null) => {
+    if (classicTree) return {};
+    const directFamily = edgeKind === 'union' || (edgeKind === 'parent' && parentIds.length > 0 && childId && (levels.get(childId) || 0) - Math.max(...parentIds.map(id => levels.get(id) || 0)) <= 1);
+    return directFamily
+      ? {length: 130, physics: true}
+      : {length: 300, physics: true};
+  };
+    // Classic renders the direct spouse rail; Organic renders the two dashed parent-to-hub rails.
   if (classicTree) {
     const drawnCouples = new Set();
     unions.forEach(union => {
@@ -486,7 +507,7 @@ function renderTree() {
       const coupleKey = [...pids].sort().join('|');
       if (drawnCouples.has(coupleKey)) return;
       drawnCouples.add(coupleKey);
-      edges.push(labeledEdge({from: pids[0], to: pids[1], edgeKind: 'union', label: 'Spouse', arrows: {to: {enabled: false}}, color: {color: '#d4a373', opacity: 0.85}, width: 1.6, dashes: [4, 4], smooth: {enabled: false}}));
+      edges.push(labeledEdge({from: pids[0], to: pids[1], edgeKind: 'union', label: 'Spouse', arrows: {to: {enabled: false}}, color: {color: '#d4a373', opacity: 0.85}, width: 1.6, dashes: [4, 4], smooth: {enabled: false}, ...organicEdgePhysics('union', pids)}));
     });
   }
   const parentGroups = new Map();
@@ -497,15 +518,27 @@ function renderTree() {
     if (!parentGroups.has(key)) parentGroups.set(key, {parentIds: uniqueParents, childIds: []});
     parentGroups.get(key).childIds.push(childId);
   });
-  const childRelationLabel = (parentIds, childId) => {
+    const childRelationLabel = (parentIds, childId) => {
     const child = personById.get(childId);
     if (!child) return '';
     return child.gender === 'M' ? 'Son' : child.gender === 'F' ? 'Daughter' : 'Child';
   };
-  const invisibleNode = (id, position, level) => nodes.push({id, label: '', shape: 'dot', size: 1, borderWidth: 0, color: {background: 'rgba(0,0,0,0)', border: 'rgba(0,0,0,0)'}, level, ...position, physics: false, fixed: {x: true, y: true}, chosen: false});
+  const invisibleClassicNode = (id, position, level) => nodes.push({id, label: '', shape: 'dot', size: 1, borderWidth: 0, color: {background: 'rgba(0,0,0,0)', border: 'rgba(0,0,0,0)'}, level, ...position, physics: false, fixed: {x: true, y: true}, chosen: false});
+  const invisibleOrganicHub = (id, level) => nodes.push({id, label: '', shape: 'dot', size: 0, opacity: 0, borderWidth: 0, color: {background: 'rgba(0,0,0,0)', border: 'rgba(0,0,0,0)'}, level, physics: true, fixed: false, chosen: false});
   parentGroups.forEach(group => {
     const hasCouple = group.parentIds.length >= 2;
     const sourceId = group.parentIds[0];
+    if (!classicTree) {
+      if (hasCouple) {
+        const hubId = `hub_${group.parentIds.join('_')}`;
+        invisibleOrganicHub(hubId, Math.max(...group.parentIds.map(parentId => levels.get(parentId) || 0)) + 0.5);
+        group.parentIds.forEach(parentId => edges.push(labeledEdge({from: parentId, to: hubId, edgeKind: 'marriage-hub', label: '', arrows: {to: {enabled: false}}, color: {color: '#d4a373', opacity: 0.85}, width: 1.6, dashes: [4, 4], smooth: {enabled: false}, length: 45, springConstant: 0.18, physics: true})));
+        group.childIds.forEach(childId => edges.push(labeledEdge({from: hubId, to: childId, edgeKind: 'parent', label: childRelationLabel(group.parentIds, childId), arrows: {to: {enabled: true, scaleFactor: 0.8}}, color: {color: '#6366f1', highlight: '#a5b4fc'}, width: 2, smooth: {enabled: true, type: 'dynamic'}, length: 160, springConstant: 0.04, physics: true})));
+      } else {
+        group.childIds.forEach(childId => edges.push(labeledEdge({from: sourceId, to: childId, edgeKind: 'parent', label: childRelationLabel(group.parentIds, childId), arrows: {to: {enabled: true, scaleFactor: 0.8}}, color: {color: '#6366f1', highlight: '#a5b4fc'}, width: 2, smooth: {enabled: true, type: 'dynamic'}, ...organicEdgePhysics('parent', group.parentIds, childId)})));
+      }
+      return;
+    }
     // Single child: connect directly, no need for a shared trunk to split.
     if (group.childIds.length < 2 && !hasCouple) {
       group.childIds.forEach(childId => edges.push(labeledEdge({from: sourceId, to: childId, edgeKind: 'parent', label: childRelationLabel(group.parentIds, childId), arrows: {to: {enabled: true, scaleFactor: 0.8}}, color: {color: '#6366f1', highlight: '#a5b4fc'}, width: 2, smooth: classicTree ? {enabled: false} : {enabled: true, type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.5}})));
@@ -537,9 +570,9 @@ function renderTree() {
     yCounts.forEach((count, y) => { if (count > bestCount) { bestCount = count; childLaneY = y; } });
     const branchPosition = unionPosition && childLaneY !== undefined ? {x: unionPosition.x, y: (unionPosition.y + childLaneY) / 2} : {};
     if (hasCouple) {
-      invisibleNode(intersectionId, unionPosition || {}, Math.max(...group.parentIds.map(parentId => levels.get(parentId) || 0)) + 0.5);
+      invisibleClassicNode(intersectionId, unionPosition || {}, Math.max(...group.parentIds.map(parentId => levels.get(parentId) || 0)) + 0.5);
     }
-    invisibleNode(branchId, branchPosition, Math.max(...group.childIds.map(childId => levels.get(childId) || 0)) - 0.4);
+    invisibleClassicNode(branchId, branchPosition, Math.max(...group.childIds.map(childId => levels.get(childId) || 0)) - 0.4);
     const trunkFrom = hasCouple ? intersectionId : sourceId;
     edges.push({from: trunkFrom, to: branchId, edgeKind: 'parent', arrows: {to: {enabled: false}}, label: '', color: {color: '#6366f1', opacity: 0.9}, width: 2, smooth: {enabled: false}});
     // Every child, including one grafted in elsewhere via marriage and sitting at a
@@ -606,12 +639,9 @@ function renderTree() {
   networkNodes = new vis.DataSet(nodes);
   networkEdges = new vis.DataSet(edges);
   
-  // Classic tree mode uses the manually computed x/y coordinates from computeLayout()
-  // directly, so vis-network's own hierarchical/physics engines must both stay off —
-  // otherwise they silently override our positions and re-tangle the edges.
   const networkConfig = {
     layout: {hierarchical: {enabled: false}},
-    physics: classicTree ? {enabled: false} : {enabled: true, solver: 'repulsion', repulsion: {nodeDistance: 260, centralGravity: 0.08, springLength: 180, springConstant: 0.025, damping: 0.92}, stabilization: {enabled: true, iterations: 180, fit: true}},
+    physics: classicTree ? {enabled: false} : {enabled: true, solver: 'barnesHut', barnesHut: {gravitationalConstant: -25000, centralGravity: 0.08, springLength: 220, springConstant: 0.03, damping: 0.09, avoidOverlap: 1}, stabilization: {enabled: true, iterations: 1000, fit: true}},
     nodes: {
       shape: 'image',
       borderWidth: 2,
@@ -705,13 +735,18 @@ function renderTree() {
   };
 
 
-  network.once('stabilizationIterationsDone', () => {
+      network.on('stabilizationIterationsDone', () => {
     if (!classicTree) network.setOptions({physics: {enabled: false}});
     syncConnectorPositions();
     animateConnections();
   });
-  network.on('dragStart', event => {
-    if (event.nodes?.length) network.setOptions({physics: {enabled: false}});
+  network.on('dragStart', () => {
+    if (classicTree) return;
+    network.setOptions({physics: {enabled: true}});
+  });
+  network.on('dragEnd', () => {
+    if (classicTree) return;
+    setTimeout(() => network?.setOptions({physics: {enabled: false}}), 400);
   });
   network.on('afterDrawing', () => animateConnections());
   network.on('zoom', () => animateConnections());
@@ -1119,6 +1154,8 @@ $('edgeStyleSelect').onchange = event => {
 $('searchInput').oninput = renderTree;
 $('yearSlider').oninput = renderTree;
 function setViewMode(mode) {
+  if (state.viewMode === mode && network) return;
+  teardownNetwork();
   state.viewMode = mode;
   localStorage.setItem('familyVaultView', mode);
   ['organicView', 'classicView'].forEach(id => {

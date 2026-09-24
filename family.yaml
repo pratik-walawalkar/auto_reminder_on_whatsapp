@@ -1,7 +1,7 @@
 version: '3.0'
 schema_revision: '2026-09-21'
 metadata:
-  last_updated: '2026-09-24T10:08:04Z'
+  last_updated: '2026-09-24T13:26:52Z'
   system_engine: FamilyVault-local
   family_root_surname: YourSurname
 configuration:
@@ -35,8 +35,8 @@ individuals:
     reason: Textile Mill Employment
   biographical_notes: Deeply religious, managed local community library in South Mumbai.
   position:
-    x: 101
-    y: -145
+    x: -538
+    y: 83
 - id: laxmi_1902_g0
   first_name: Laxmi
   middle_name: Vithal
@@ -48,8 +48,8 @@ individuals:
       date: '1902'
       location: Satara, Maharashtra
   position:
-    x: 259
-    y: -302
+    x: 1364
+    y: -87
 - id: ramesh_1935_g1
   first_name: Ramesh
   middle_name: Vithal
@@ -61,8 +61,8 @@ individuals:
       date: '1935-04-12'
       location: Girgaon, Mumbai
   position:
-    x: 299
-    y: 35
+    x: -423
+    y: -153
 - first_name: Pranay
   last_name: Walawalkar
   gender: M
@@ -72,8 +72,8 @@ individuals:
       location: ''
   id: pranay_walawalkar
   position:
-    x: 1635
-    y: -180
+    x: 1483
+    y: -531
 - first_name: Shailaja
   last_name: Walawalkar
   gender: F
@@ -83,8 +83,8 @@ individuals:
       location: ''
   id: shailaja_walawalkar
   position:
-    x: 2050
-    y: -165
+    x: -163
+    y: 238
 - first_name: Suryakant
   last_name: Walawalkar
   gender: M
@@ -94,8 +94,8 @@ individuals:
       location: ''
   id: suryakant_walawalkar
   position:
-    x: 1597
-    y: -468
+    x: -211
+    y: -108
 - first_name: Pratik
   last_name: Walawalkar
   gender: M
@@ -104,8 +104,8 @@ individuals:
       date: unknown
       location: ''
   position:
-    x: 1692
-    y: 211
+    x: -16
+    y: -213
   id: pratik_walawalkar
 - first_name: Saloni
   last_name: Walawalkar
@@ -116,8 +116,8 @@ individuals:
       location: ''
   id: saloni_walawalkar
   position:
-    x: 1961
-    y: 210
+    x: 720
+    y: -65
 - first_name: Jyotsna
   last_name: Walawalkar
   gender: F
@@ -127,8 +127,8 @@ individuals:
       location: ''
   id: jyotsna_walawalkar
   position:
-    x: 1301
-    y: -340
+    x: 818
+    y: -724
 - first_name: Milind
   last_name: Walawalkar
   gender: M
@@ -149,8 +149,8 @@ individuals:
       location: ''
   id: prarthana_walawalkar
   position:
-    x: 1613
-    y: 47
+    x: -1258
+    y: -623
 - first_name: Alka
   last_name: Walawalkar
   gender: F
@@ -159,6 +159,9 @@ individuals:
       date: unknown
       location: ''
   id: alka_walawalkar
+  position:
+    x: 791
+    y: -152
 - first_name: Vijay
   last_name: Arolkar
   gender: M
@@ -183,6 +186,9 @@ individuals:
       date: unknown
       location: ''
   id: vinamra_arolkar
+  position:
+    x: -3156
+    y: -764
 - first_name: Prajakta
   last_name: Walawalkar
   gender: F
@@ -208,8 +214,8 @@ individuals:
       location: ''
   id: sumitra_teli
   position:
-    x: 2178
-    y: -231
+    x: 3351
+    y: -611
 - first_name: Pandurang
   last_name: Teli
   gender: M
@@ -219,8 +225,8 @@ individuals:
       location: ''
   id: pandurang_teli
   position:
-    x: 2441
-    y: -256
+    x: 2610
+    y: -493
 - first_name: Shreekrishna
   last_name: Lorekar
   gender: M
@@ -230,8 +236,8 @@ individuals:
       location: ''
   id: shreekrishna_lorekar
   position:
-    x: 2471
-    y: -67
+    x: 1523
+    y: 740
 - first_name: Aarti
   last_name: Lorekar
   gender: F
@@ -241,8 +247,8 @@ individuals:
       location: ''
   id: aarti_lorekar
   position:
-    x: 2770
-    y: -65
+    x: 3815
+    y: -358
 - first_name: Aumkar
   last_name: Lorekar
   gender: M
@@ -263,8 +269,8 @@ individuals:
       location: ''
   id: pranav_lorekar
   position:
-    x: 2816
-    y: 120
+    x: 2378
+    y: 1008
 - first_name: Geeta
   last_name: Waingankar
   gender: F
@@ -274,8 +280,8 @@ individuals:
       location: ''
   id: geeta_waingankar
   position:
-    x: 2192
-    y: -59
+    x: 373
+    y: -626
 - first_name: Aniket
   last_name: Waingankar
   gender: M
@@ -284,8 +290,8 @@ individuals:
       date: unknown
       location: ''
   position:
-    x: 2222
-    y: 118
+    x: 703
+    y: -538
   id: aniket_waingankar
 - first_name: Harishchandra
   last_name: Walawalkar
@@ -296,8 +302,8 @@ individuals:
       location: ''
   id: harishchandra_walawalkar
   position:
-    x: 939
-    y: -511
+    x: -1567
+    y: -4
 - first_name: Kunda
   last_name: Walawalkar
   gender: F
@@ -318,8 +324,8 @@ individuals:
       location: ''
   id: narayan_walawalkar
   position:
-    x: 1327
-    y: -615
+    x: -712
+    y: -99
 - first_name: Amol
   last_name: Walawalkar
   gender: M
@@ -340,8 +346,8 @@ individuals:
       location: ''
   id: shilpa_walawalkar
   position:
-    x: 746
-    y: -372
+    x: -1822
+    y: -96
 - first_name: Anish
   last_name: Walawalkar
   gender: M
@@ -361,6 +367,9 @@ individuals:
       date: unknown
       location: ''
   id: baban_walawalkar
+  position:
+    x: 485
+    y: -105
 unions:
 - id: union_vithal_laxmi_1918
   partners:

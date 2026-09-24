@@ -563,8 +563,9 @@ button.danger {
   border: 1px solid var(--line);
   border-radius: 20px;
   color: var(--text);
-  padding: 14px 14px 12px;
+    padding: 12px;
   text-align: left;
+  overflow-wrap: anywhere;
   box-shadow: var(--shadow-soft);
   cursor: pointer;
   opacity: 0;
