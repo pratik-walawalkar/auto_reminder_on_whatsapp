@@ -257,7 +257,10 @@ function computeLayout(people, unions, parentsOf, levels) {
     totalWidth -= SIBLING_GAP;
 
     const childY = y + LEVEL_HEIGHT;
-    let currentX = centerX - totalWidth / 2;
+    // Children belong beneath the parent for a single node, or beneath the
+    // midpoint of the couple for a side-by-side pair.
+    const childAnchorX = spouseId ? centerX + COUPLE_HGAP / 2 : centerX;
+    let currentX = childAnchorX - totalWidth / 2;
     const freshCenters = [];
     freshKids.forEach((kidId, idx) => {
       const width = widths[idx];
@@ -272,14 +275,14 @@ function computeLayout(people, unions, parentsOf, levels) {
 
     // Re-center over freshly placed children only — a sibling grafted in from
     // elsewhere keeps their own true position and must not skew this couple.
-    const resolvedCenterX = freshCenters.length ? (Math.min(...freshCenters) + Math.max(...freshCenters)) / 2 : centerX;
+    const childGroupCenterX = freshCenters.length ? (Math.min(...freshCenters) + Math.max(...freshCenters)) / 2 : centerX;
+    const resolvedCenterX = spouseId ? childGroupCenterX - COUPLE_HGAP / 2 : childGroupCenterX;
     positions.set(bloodId, {x: Math.round(resolvedCenterX), y: Math.round(y)});
     if (spouseId) {
-      // Spouse positioned horizontally to the right of the blood relation, same Y coordinate
+      // Keep the couple's union midpoint aligned with the center of its child group.
       positions.set(spouseId, {x: Math.round(resolvedCenterX + COUPLE_HGAP), y: Math.round(y)});
       const unionId = unionOfCouple.get(coupleKey);
-      // Union node sits at the center X between the two spouses, from which children descend
-      if (unionId) positions.set(unionId, {x: Math.round(resolvedCenterX + COUPLE_HGAP / 2), y: Math.round(y)});
+      if (unionId) positions.set(unionId, {x: Math.round(childGroupCenterX), y: Math.round(y)});
     }
   };
 
