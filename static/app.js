@@ -85,7 +85,6 @@ async function enterVault() {
   const isAdmin = state.user.role === 'admin';
   $('reviewButton').hidden = !isAdmin;
   $('usersButton').hidden = !isAdmin;
-  $('exportGedcomButton').hidden = !isAdmin;
   await loadFamily();
 }
 
@@ -1122,6 +1121,81 @@ async function deleteUserAccount(username) {
 }
 
 // vis-network owns node dragging, canvas panning, and zooming.
+function downloadBlob(content, filename, type) {
+  const url = URL.createObjectURL(new Blob([content], {type}));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function closeExportMenu() {
+  $('exportDropdownMenu').classList.add('hidden');
+  $('exportDropdownBtn').setAttribute('aria-expanded', 'false');
+}
+
+function triggerSvgExport() {
+  if (!network || !networkNodes) return notice('The tree is still rendering.');
+  const positions = network.getPositions();
+  const nodes = networkNodes.get();
+  const edges = networkEdges?.get() || [];
+  const points = Object.values(positions);
+  const minX = Math.min(...points.map(point => point.x), 0) - 140;
+  const minY = Math.min(...points.map(point => point.y), 0) - 60;
+  const maxX = Math.max(...points.map(point => point.x), 0) + 140;
+  const maxY = Math.max(...points.map(point => point.y), 0) + 60;
+  const lineMarkup = edges.map(edge => {
+    const from = positions[edge.from];
+    const to = positions[edge.to];
+    return from && to ? `<line x1="${from.x - minX}" y1="${from.y - minY}" x2="${to.x - minX}" y2="${to.y - minY}" stroke="#818cf8" stroke-width="2" opacity=".8"/>` : '';
+  }).join('');
+  const nodeMarkup = nodes.filter(node => positions[node.id] && node.label).map(node => {
+    const point = positions[node.id];
+    return `<g transform="translate(${point.x - minX},${point.y - minY})"><rect x="-98" y="-30" width="196" height="60" rx="12" fill="#0f172a" stroke="#818cf8" stroke-width="1.6"/><text x="-82" y="4" fill="#f1f5f9" font-family="Arial,sans-serif" font-size="12">${svgEscape(node.label)}</text></g>`;
+  }).join('');
+  const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX - minX}" height="${maxY - minY}" viewBox="0 0 ${maxX - minX} ${maxY - minY}"><rect width="100%" height="100%" fill="#06070f"/>${lineMarkup}${nodeMarkup}</svg>`;
+  downloadBlob(svgContent, 'family_tree_vault.svg', 'image/svg+xml;charset=utf-8');
+  closeExportMenu();
+}
+
+function triggerPngExport() {
+  const canvas = $('treeCanvas')?.querySelector('canvas');
+  if (!canvas) return notice('The tree is still rendering.');
+  const link = document.createElement('a');
+  link.download = 'family_tree_snapshot.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+  closeExportMenu();
+}
+
+async function triggerGedcomExport() {
+  try {
+    const response = await fetch('/api/export/gedcom');
+    if (!response.ok) throw new Error('GEDCOM export requires administrator access.');
+    downloadBlob(await response.text(), 'family_vault.ged', 'text/vnd.familysearch.gedcom');
+  } catch (error) {
+    notice(error.message);
+  }
+  closeExportMenu();
+}
+
+function triggerPumlExport() {
+  const people = state.family?.individuals || [];
+  const unions = state.family?.unions || [];
+  const lines = ['@startuml', 'hide circle', 'skinparam classAttributeIconSize 0'];
+  people.forEach(person => lines.push(`class "${displayName(person).replace(/"/g, '\\\"')}" as ${person.id.replace(/[^A-Za-z0-9_]/g, '_')}`));
+  unions.forEach(union => {
+    const partners = (union.partners || []).map(partner => partner.individual_id).filter(Boolean);
+    if (partners.length > 1) lines.push(`${partners[0].replace(/[^A-Za-z0-9_]/g, '_')} -- ${partners[1].replace(/[^A-Za-z0-9_]/g, '_')} : spouse`);
+    (union.children || []).forEach(child => partners.forEach(parent => lines.push(`${parent.replace(/[^A-Za-z0-9_]/g, '_')} --> ${child.individual_id.replace(/[^A-Za-z0-9_]/g, '_')} : parent`)));
+  });
+  lines.push('@enduml');
+  downloadBlob(lines.join('\n'), 'family_tree_vault.puml', 'text/plain;charset=utf-8');
+  closeExportMenu();
+}
 
 // ---------- Wiring ----------
 $('loginForm').onsubmit = async event => {
@@ -1145,6 +1219,19 @@ $('logoutButton').onclick = async () => {
   show('loginView');
 };
 $('themeToggle').onclick = toggleTheme;
+$('exportDropdownBtn').onclick = event => {
+  event.stopPropagation();
+  const menu = $('exportDropdownMenu');
+  const hidden = menu.classList.toggle('hidden');
+  $('exportDropdownBtn').setAttribute('aria-expanded', String(!hidden));
+};
+$('svgExportBtn').onclick = triggerSvgExport;
+$('pngExportBtn').onclick = triggerPngExport;
+$('existingGedcomBtn').onclick = triggerGedcomExport;
+$('pumlExportBtn').onclick = triggerPumlExport;
+document.addEventListener('click', event => {
+  if (!$('exportMenuContainer').contains(event.target)) closeExportMenu();
+});
 $('edgeStyleSelect').value = state.edgeStyle;
 $('edgeStyleSelect').onchange = event => {
   state.edgeStyle = event.target.value;

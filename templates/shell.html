@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#06070f">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Family Vault</title>
-  <link rel="stylesheet" href="/static/app.css?v=20260924-toolbar-status-right">
+  <link rel="stylesheet" href="/static/app.css?v=20260924-export-vault">
   <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
   <script>
     (function () {
@@ -41,7 +41,6 @@
           <a class="button-link secondary" href="/help">Help &amp; guide</a>
           <button id="reviewButton" class="secondary" hidden>Review proposals</button>
           <button id="usersButton" class="secondary" hidden>Manage users</button>
-          <a id="exportGedcomButton" class="button-link secondary" href="/api/export/gedcom" hidden>Export GEDCOM</a>
           <button id="logoutButton" class="secondary">Sign out</button>
         </div>
       </header>
@@ -51,6 +50,20 @@
           <span>View:</span>
           <button id="organicView" class="view-mode active" type="button" aria-pressed="true">Organic</button>
           <button id="classicView" class="view-mode" type="button" aria-pressed="false">Classic Tree</button>
+        </div>
+        <div class="relative inline-block text-left" id="exportMenuContainer">
+          <button id="exportDropdownBtn" type="button" aria-expanded="false" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded text-xs font-medium shadow flex items-center space-x-1">
+            <span>Export Options</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+          </button>
+          <div id="exportDropdownMenu" class="hidden absolute right-0 mt-2 w-44 rounded-md shadow-lg bg-slate-800 border border-slate-700 ring-1 ring-black ring-opacity-5 z-[100]">
+            <div class="py-1" role="menu">
+              <button id="svgExportBtn" class="w-full text-left block px-4 py-2 text-xs text-slate-200 hover:bg-slate-700" role="menuitem">Download Vector (.SVG)</button>
+              <button id="pngExportBtn" class="w-full text-left block px-4 py-2 text-xs text-slate-200 hover:bg-slate-700" role="menuitem">Download Image (.PNG)</button>
+              <button id="existingGedcomBtn" class="w-full text-left block px-4 py-2 text-xs text-slate-200 hover:bg-slate-700" role="menuitem">Download Schema (.GED)</button>
+              <button id="pumlExportBtn" class="w-full text-left block px-4 py-2 text-xs text-slate-200 hover:bg-slate-700" role="menuitem">Download Diagram (.PUML)</button>
+            </div>
+          </div>
         </div>
         <button id="resetView" class="secondary">Reset view</button>
         <label class="edge-style-label">Edges
@@ -71,6 +84,6 @@
   <aside id="sidePanel" class="side-panel" hidden aria-label="Family member panel"><button class="close-sheet" data-close="sidePanel" aria-label="Close">×</button><div id="sidePanelContent"></div></aside>
   <aside id="reviewSheet" class="sheet" hidden aria-label="Proposal review"><div class="sheet-panel"><span class="sheet-handle" aria-hidden="true"></span><button class="close-sheet" data-close="reviewSheet" aria-label="Close">×</button><div id="reviewContent"></div></div></aside>
   <div id="overlayBackdrop" class="side-panel-backdrop" hidden></div>
-  <script src="/static/app.js?v=20260923-centered-parent-straight-lines"></script>
+  <script src="/static/app.js?v=20260924-export-vault"></script>
 </body>
 </html>
