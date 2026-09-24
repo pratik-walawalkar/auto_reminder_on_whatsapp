@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#06070f">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Family Vault</title>
-  <link rel="stylesheet" href="/static/app.css?v=20260922-animated-connections">
+  <link rel="stylesheet" href="/static/app.css?v=20260924-toolbar-status-right">
   <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
   <script>
     (function () {
@@ -60,8 +60,8 @@
           </select>
         </label>
         <button id="addButton">+ Add family member</button>
+        <section id="status" class="status" hidden></section>
       </section>
-      <section id="status" class="status" hidden></section>
       <section id="treeViewport" aria-label="Interactive family knowledge graph">
         <div id="treeCanvas"></div>
       </section>

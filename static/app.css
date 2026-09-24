@@ -465,13 +465,15 @@ button.danger {
 }
 
 .status {
-  margin: 12px auto;
-  padding: 10px 16px;
+  margin: 0 0 0 auto;
+  padding: 8px 12px;
   border: 1px solid var(--line);
-  border-radius: 12px;
-  max-width: 900px;
+  border-radius: 999px;
+  max-width: min(360px, 100%);
   color: var(--muted);
   background: var(--panel);
+  font-size: 0.82rem;
+  white-space: nowrap;
 }
 
 /* ---------- Knowledge-graph canvas ---------- */
@@ -480,8 +482,14 @@ button.danger {
   overflow: hidden;
   touch-action: none;
   position: relative;
-  background-image: radial-gradient(var(--grid-dot) 1.4px, transparent 0);
-  background-size: 26px 26px;
+  isolation: isolate;
+  background-color: var(--bg-1);
+  background-image:
+    radial-gradient(70% 110% at 12% 8%, color-mix(in srgb, var(--accent) 16%, var(--bg-1)), transparent 72%),
+    radial-gradient(70% 110% at 88% 92%, color-mix(in srgb, var(--accent-2) 14%, var(--bg-1)), transparent 72%),
+    radial-gradient(var(--grid-dot) 1.4px, transparent 0);
+  background-size: auto, auto, 26px 26px;
+  background-position: center, center, 0 0;
 }
 
 #treeCanvas {
@@ -500,6 +508,7 @@ button.danger {
   outline: none;
   transform: translateZ(0);
   image-rendering: auto;
+  background: transparent;
 }
 
 #treeViewport:active {

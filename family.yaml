@@ -1,7 +1,7 @@
 version: '3.0'
 schema_revision: '2026-09-21'
 metadata:
-  last_updated: '2026-09-22T14:48:10Z'
+  last_updated: '2026-09-24T10:08:04Z'
   system_engine: FamilyVault-local
   family_root_surname: YourSurname
 configuration:
@@ -98,15 +98,15 @@ individuals:
     y: -468
 - first_name: Pratik
   last_name: Walawalkar
-  gender: U
+  gender: M
   vital_events:
     birth:
       date: unknown
       location: ''
-  id: pratik_walawalkar
   position:
     x: 1692
     y: 211
+  id: pratik_walawalkar
 - first_name: Saloni
   last_name: Walawalkar
   gender: F
@@ -278,15 +278,15 @@ individuals:
     y: -59
 - first_name: Aniket
   last_name: Waingankar
-  gender: U
+  gender: M
   vital_events:
     birth:
       date: unknown
       location: ''
-  id: aniket_waingankar
   position:
     x: 2222
     y: 118
+  id: aniket_waingankar
 - first_name: Harishchandra
   last_name: Walawalkar
   gender: M
@@ -353,6 +353,14 @@ individuals:
   position:
     x: 712
     y: -177
+- first_name: Baban
+  last_name: Walawalkar
+  gender: M
+  vital_events:
+    birth:
+      date: unknown
+      location: ''
+  id: baban_walawalkar
 unions:
 - id: union_vithal_laxmi_1918
   partners:
@@ -463,4 +471,11 @@ unions:
   union_type: marriage
   children:
   - individual_id: anish_walawalkar
+    link_type: biological
+- id: union_babanwalawalkar_narayanwalawalkar
+  partners:
+  - individual_id: baban_walawalkar
+  union_type: unknown
+  children:
+  - individual_id: narayan_walawalkar
     link_type: biological
