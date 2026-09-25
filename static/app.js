@@ -102,6 +102,23 @@ async function loadFamily() {
 let network = null;
 let networkNodes = null;
 let networkEdges = null;
+let isShiftPressed = false;
+let lastPointerNodeId = null;
+
+function evaluateAndResetHighlight() {
+  if (state.lineageHover) clearLineageHover();
+}
+
+window.addEventListener('keydown', event => {
+  if (event.key === 'Shift') isShiftPressed = true;
+});
+
+window.addEventListener('keyup', event => {
+  if (event.key === 'Shift') {
+    isShiftPressed = false;
+    evaluateAndResetHighlight();
+  }
+});
 
 function getAncestorsRecursive(nodeId, dataset, visited = new Set()) {
   if (!nodeId || visited.has(nodeId)) return visited;
@@ -113,6 +130,7 @@ function getAncestorsRecursive(nodeId, dataset, visited = new Set()) {
 }
 
 function applyLineageHover(nodeId, people, unions, parentsOf) {
+  if (isShiftPressed && state.lineageHover) return;
   if (!networkNodes || !networkEdges) return;
   const lineageDataset = people.map(person => ({...person, relationships: {...person.relationships, parents: parentsOf.get(person.id) || []}}));
   const lineage = getAncestorsRecursive(nodeId, parentsOf);
@@ -175,9 +193,12 @@ function applyLineageHover(nodeId, people, unions, parentsOf) {
       : {color: 'rgba(148, 163, 184, 0.12)', highlight: 'rgba(148, 163, 184, 0.12)', hover: 'rgba(148, 163, 184, 0.12)'}
   })));
   state.lineageHover = {nodeId, lineage, vividNodes, vividEdges};
+  lastPointerNodeId = nodeId;
 }
 
 function clearLineageHover() {
+  if (isShiftPressed) return;
+
   if (!networkNodes || !networkEdges) return;
   networkNodes.update(networkNodes.get().map(node => ({id: node.id, opacity: 1, color: node._lineageColor})));
   networkEdges.update(networkEdges.get().map(edge => ({
@@ -849,13 +870,20 @@ function renderTree() {
     setTimeout(() => network?.setOptions({physics: {enabled: false}}), 400);
   });
   network.on('hoverNode', ({node}) => {
-    if (personById.has(node)) applyLineageHover(node, people, unions, parentsOf);
+    if (personById.has(node)) {
+      lastPointerNodeId = node;
+      applyLineageHover(node, people, unions, parentsOf);
+    }
   });
-  network.on('blurNode', () => clearLineageHover());
+  network.on('blurNode', () => {
+    if (!isShiftPressed) clearLineageHover();
+  });
   network.on('mousemove', ({pointer}) => {
     const nodeId = network.getNodeAt(pointer.canvas);
-    if (personById.has(nodeId)) applyLineageHover(nodeId, people, unions, parentsOf);
-    else if (state.lineageHover) clearLineageHover();
+    if (personById.has(nodeId)) {
+      lastPointerNodeId = nodeId;
+      applyLineageHover(nodeId, people, unions, parentsOf);
+    } else if (!isShiftPressed && state.lineageHover) clearLineageHover();
   });
   network.on('afterDrawing', () => animateConnections());
   network.on('zoom', () => animateConnections());
@@ -1324,6 +1352,84 @@ async function triggerPngExport() {
   }
 }
 
+async function triggerLineageSnapshotExport(formatType = 'png') {
+  if (!state.lineageHover?.vividNodes?.size) {
+    closeExportMenu();
+    return notice('Please hover or Shift-lock a lineage path first to export a snapshot.');
+  }
+  const format = ['png', 'svg', 'puml'].includes(formatType) ? formatType : 'png';
+  const people = state.family?.individuals || [];
+  const targetPerson = people.find(person => person.id === state.lineageHover.nodeId);
+  const rawFullName = targetPerson ? `${targetPerson.first_name || ''}_${targetPerson.last_name || ''}` : '';
+  const targetNameSlug = rawFullName.toLowerCase().replace(/[^a-z0-9_]/g, '') || 'unknown_ancestor';
+  const filename = `lineage_snapshot_${targetNameSlug}.${format}`;
+  const visibleIds = state.lineageHover.vividNodes;
+  const visibleNodes = networkNodes?.get().filter(node => visibleIds.has(node.id)) || [];
+  const visibleEdges = networkEdges?.get().filter(edge => state.lineageHover.vividEdges.has(edge.id)) || [];
+  if (!visibleNodes.length) return notice('Please hover or Shift-lock a lineage path first to export a snapshot.');
+
+  if (format === 'puml') {
+    const names = new Map(people.map(person => [person.id, displayName(person).replace(/"/g, '\\\"')]));
+    const lines = ['@startuml', 'hide circle', 'skinparam classAttributeIconSize 0'];
+    visibleNodes.filter(node => names.has(node.id)).forEach(node => lines.push(`class "${names.get(node.id)}" as ${node.id.replace(/[^A-Za-z0-9_]/g, '_')}`));
+    visibleEdges.forEach(edge => {
+      if (names.has(edge.from) && names.has(edge.to)) lines.push(`${edge.from.replace(/[^A-Za-z0-9_]/g, '_')} --> ${edge.to.replace(/[^A-Za-z0-9_]/g, '_')}`);
+    });
+    lines.push('@enduml');
+    downloadBlob(lines.join('\\n'), filename, 'text/plain;charset=utf-8');
+    closeExportMenu();
+    return;
+  }
+
+  const container = $('treeCanvas');
+  const canvas = container?.querySelector('canvas');
+  if (!network || !networkNodes || !networkEdges || !container || !canvas) return notice('The tree is still rendering.');
+  const positions = network.getPositions(visibleNodes.map(node => node.id));
+  const points = visibleNodes.map(node => positions[node.id]).filter(Boolean);
+  const halfWidth = 100;
+  const halfHeight = 38;
+  const padding = 48;
+  const minX = Math.floor(Math.min(...points.map(point => point.x - halfWidth)) - padding);
+  const minY = Math.floor(Math.min(...points.map(point => point.y - halfHeight)) - padding);
+  const maxX = Math.ceil(Math.max(...points.map(point => point.x + halfWidth)) + padding);
+  const maxY = Math.ceil(Math.max(...points.map(point => point.y + halfHeight)) + padding);
+  const previous = {width: container.style.width, height: container.style.height, overflow: container.style.overflow, view: network.getViewPosition(), scale: network.getScale(), nodeOpacity: new Map(networkNodes.get().map(node => [node.id, node.opacity])), edgeOpacity: new Map(networkEdges.get().map(edge => [edge.id, edge.opacity]))};
+  try {
+    networkNodes.update(networkNodes.get().filter(node => !visibleIds.has(node.id)).map(node => ({id: node.id, opacity: 0})));
+    networkEdges.update(networkEdges.get().filter(edge => !state.lineageHover.vividEdges.has(edge.id)).map(edge => ({id: edge.id, opacity: 0})));
+    container.style.width = `${maxX - minX}px`;
+    container.style.height = `${maxY - minY}px`;
+    container.style.overflow = 'visible';
+    network.setSize(`${maxX - minX}px`, `${maxY - minY}px`);
+    network.moveTo({position: {x: (minX + maxX) / 2, y: (minY + maxY) / 2}, scale: 1, animation: false});
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    if (format === 'svg') {
+      const svgNodes = visibleNodes.filter(node => positions[node.id] && node.image).map(node => `<image href="${svgEscape(node.image)}" x="${positions[node.id].x - minX - 98}" y="${positions[node.id].y - minY - 30}" width="196" height="60"/>`).join('');
+      const svgEdges = visibleEdges.map(edge => { const from = positions[edge.from]; const to = positions[edge.to]; return from && to ? `<line x1="${from.x - minX}" y1="${from.y - minY}" x2="${to.x - minX}" y2="${to.y - minY}" stroke="#818cf8" stroke-width="2"/>` : ''; }).join('');
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX - minX}" height="${maxY - minY}" viewBox="0 0 ${maxX - minX} ${maxY - minY}"><rect width="100%" height="100%" fill="#06070f"/>${svgEdges}${svgNodes}</svg>`;
+      downloadBlob(svg, filename, 'image/svg+xml;charset=utf-8');
+    } else {
+      const activeCanvas = document.querySelector('#network-canvas canvas') || container.querySelector('canvas');
+      const snapshotLink = document.createElement('a');
+      snapshotLink.href = activeCanvas.toDataURL('image/png', 1.0);
+      snapshotLink.download = filename;
+      document.body.appendChild(snapshotLink);
+      snapshotLink.click();
+      document.body.removeChild(snapshotLink);
+    }
+  } catch (error) {
+    notice(`Lineage snapshot export failed: ${error.message}`);
+  } finally {
+    networkNodes.update([...previous.nodeOpacity].map(([id, opacity]) => ({id, opacity})));
+    networkEdges.update([...previous.edgeOpacity].map(([id, opacity]) => ({id, opacity})));
+    container.style.width = previous.width;
+    container.style.height = previous.height;
+    container.style.overflow = previous.overflow;
+    network.setSize('100%', '100%');
+    network.moveTo({position: previous.view, scale: previous.scale, animation: false});
+    closeExportMenu();
+  }
+}
 
 async function triggerGedcomExport() {
   try {

@@ -497,31 +497,87 @@ button.danger {
   position: absolute;
   right: 0;
   z-index: 100;
-  width: 176px;
-  margin-top: 8px;
-  border: 1px solid #334155;
-  border-radius: 6px;
-  background: #1e293b;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+  width: 256px;
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.95);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(12px);
 }
 
 #exportDropdownMenu.hidden {
   display: none;
 }
 
+#exportDropdownMenu > div {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+#exportDropdownMenu > div > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#exportDropdownMenu > div > div > div:first-child {
+  margin: 0 0 8px;
+  padding: 0 8px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+#exportDropdownMenu > div > div:nth-child(3) > div:first-child {
+  color: #818cf8;
+}
+
+#exportDropdownMenu > div > div > div:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 #exportDropdownMenu button {
   display: block;
   width: 100%;
-  padding: 8px 16px;
+  padding: 8px 12px;
   border: 0;
+  border-radius: 8px;
   background: transparent;
-  color: #e2e8f0;
+  color: #cbd5e1;
   text-align: left;
   font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.35;
+  transition: background-color 150ms ease, color 150ms ease;
 }
 
 #exportDropdownMenu button:hover {
-  background: #334155;
+  background: rgba(30, 41, 59, 0.8);
+  color: #fff;
+}
+
+#exportDropdownMenu button[onclick*="triggerLineageSnapshotExport"] {
+  color: #a5b4fc;
+}
+
+#exportDropdownMenu button[onclick*="triggerLineageSnapshotExport"]:hover {
+  background: rgba(49, 46, 129, 0.4);
+}
+
+#exportDropdownMenu .border-t {
+  width: calc(100% - 8px);
+  height: 1px;
+  min-height: 1px;
+  margin: 8px 4px;
+  background: rgba(30, 41, 59, 0.8);
 }
 
 .status {
