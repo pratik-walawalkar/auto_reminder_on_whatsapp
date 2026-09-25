@@ -103,6 +103,93 @@ let network = null;
 let networkNodes = null;
 let networkEdges = null;
 
+function getAncestorsRecursive(nodeId, dataset, visited = new Set()) {
+  if (!nodeId || visited.has(nodeId)) return visited;
+  visited.add(nodeId);
+  const person = Array.isArray(dataset) ? dataset.find(candidate => candidate.id === nodeId) : null;
+  const parentIds = person?.parents || person?.relationships?.parents || (dataset instanceof Map ? dataset.get(nodeId) || [] : []);
+  parentIds.forEach(parentId => getAncestorsRecursive(parentId, dataset, visited));
+  return visited;
+}
+
+function applyLineageHover(nodeId, people, unions, parentsOf) {
+  if (!networkNodes || !networkEdges) return;
+  const lineageDataset = people.map(person => ({...person, relationships: {...person.relationships, parents: parentsOf.get(person.id) || []}}));
+  const lineage = getAncestorsRecursive(nodeId, parentsOf);
+  const personIds = new Set(people.map(person => person.id));
+  const vividNodes = new Set(lineage);
+  const allEdges = networkEdges.get();
+  const personById = new Map(lineageDataset.map(person => [person.id, person]));
+  let changed = true;
+  while (changed) {
+    changed = false;
+    [...vividNodes].forEach(id => {
+      const ancestorCount = vividNodes.size;
+      getAncestorsRecursive(id, parentsOf, vividNodes);
+      if (vividNodes.size !== ancestorCount) changed = true;
+      unions.forEach(union => {
+        const partnerIds = (union.partners || []).map(partner => partner.individual_id);
+        const childIds = (union.children || []).map(child => child.individual_id);
+        if (partnerIds.includes(id) || childIds.some(childId => vividNodes.has(childId))) {
+          partnerIds.forEach(partnerId => {
+            if (personById.has(partnerId) && !vividNodes.has(partnerId)) {
+              vividNodes.add(partnerId);
+              changed = true;
+            }
+          });
+        }
+      });
+    });
+  }
+  changed = true;
+  while (changed) {
+    changed = false;
+    allEdges.forEach(edge => {
+      const hiddenBranch = !personIds.has(edge.from) || !personIds.has(edge.to);
+      if (edge.edgeKind === 'parent' && hiddenBranch && vividNodes.has(edge.to) && !vividNodes.has(edge.from)) {
+        vividNodes.add(edge.from);
+        changed = true;
+      }
+      if (edge.edgeKind === 'marriage-hub' && vividNodes.has(edge.from) && !vividNodes.has(edge.to)) {
+        vividNodes.add(edge.to);
+        changed = true;
+      }
+    });
+  }
+  const vividEdges = new Set(allEdges.filter(edge => {
+    if (edge.edgeKind === 'parent') return vividNodes.has(edge.from) && vividNodes.has(edge.to);
+    return vividNodes.has(edge.from) && vividNodes.has(edge.to);
+  }).map(edge => edge.id));
+  networkNodes.update(networkNodes.get().map(node => ({
+    id: node.id,
+    opacity: vividNodes.has(node.id) ? 1 : 0.12,
+    color: vividNodes.has(node.id) ? node._lineageColor : {background: 'rgba(148, 163, 184, 0.12)', border: 'rgba(148, 163, 184, 0.16)'}
+  })));
+  networkEdges.update(allEdges.map(edge => ({
+    id: edge.id,
+    opacity: vividEdges.has(edge.id) ? 1 : 0.12,
+    width: vividEdges.has(edge.id) ? Math.max(edge._lineageWidth || 2, 4) : edge._lineageWidth || 2,
+    selectionWidth: vividEdges.has(edge.id) ? 6 : edge._lineageSelectionWidth || 2,
+    color: vividEdges.has(edge.id)
+      ? edge._lineageColor
+      : {color: 'rgba(148, 163, 184, 0.12)', highlight: 'rgba(148, 163, 184, 0.12)', hover: 'rgba(148, 163, 184, 0.12)'}
+  })));
+  state.lineageHover = {nodeId, lineage, vividNodes, vividEdges};
+}
+
+function clearLineageHover() {
+  if (!networkNodes || !networkEdges) return;
+  networkNodes.update(networkNodes.get().map(node => ({id: node.id, opacity: 1, color: node._lineageColor})));
+  networkEdges.update(networkEdges.get().map(edge => ({
+    id: edge.id,
+    opacity: edge._lineageOpacity ?? 1,
+    width: edge._lineageWidth || 2,
+    selectionWidth: edge._lineageSelectionWidth || 2,
+    color: edge._lineageColor
+  })));
+  state.lineageHover = null;
+}
+
 function teardownNetwork() {
   if (networkNodes) networkNodes.clear();
   if (networkEdges) networkEdges.clear();
@@ -441,12 +528,16 @@ function renderTree() {
   const classicTree = state.viewMode === 'classic';
   const classicPositions = classicTree ? computeLayout(people, unions, parentsOf, levels) : null;
   const seedCounters = new Map();
+  const savedOrganicPositions = new Map(people.filter(person => person.position && Number.isFinite(person.position.x) && Number.isFinite(person.position.y)).map(person => [person.id, person.position]));
   const initialPosition = person => {
+    if (!classicTree && savedOrganicPositions.has(person.id)) return savedOrganicPositions.get(person.id);
     if (classicPositions?.has(person.id)) return classicPositions.get(person.id);
     const component = componentById.get(person.id) || 0;
     const index = seedCounters.get(component) || 0;
     seedCounters.set(component, index + 1);
-    return {x: component * 900 + index * 300, y: (levels.get(person.id) || 0) * 300 + 60};
+    // Organic mode starts as a wide constellation so physics refines the graph
+    // without collapsing every family branch into the middle of the viewport.
+    return {x: component * 1200 + index * 420, y: (levels.get(person.id) || 0) * 360 + 60};
   };
   const nodes = [];
   const edges = [];
@@ -487,7 +578,8 @@ function renderTree() {
       chosen: {node: (values, id, selected, hovering) => { values.shadow = true; values.shadowColor = genderColor; values.shadowSize = hovering || selected ? 24 : 14; values.borderWidth = selected ? 3 : 2; }},
       level: levels.get(person.id),
       opacity: !query || matchedIds.has(person.id) ? 1 : 0.12,
-      ...(classicTree ? {...initialPosition(person), fixed: {x: true, y: true}} : {})
+      ...initialPosition(person),
+      ...(classicTree ? {fixed: {x: true, y: true}} : {})
     });
   });
   const organicEdgePhysics = (edgeKind, parentIds = [], childId = null) => {
@@ -632,8 +724,15 @@ function renderTree() {
   `;
   svgOverlay.appendChild(defs);
 
-  state.svgOverlay = svgOverlay;
+    state.svgOverlay = svgOverlay;
   state.edgeAnimationMap = new Map();
+  nodes.forEach(node => { node._lineageColor = node.color; });
+  edges.forEach(edge => {
+    edge._lineageColor = edge.color;
+    edge._lineageOpacity = edge.opacity ?? 1;
+    edge._lineageWidth = edge.width || 2;
+    edge._lineageSelectionWidth = edge.selectionWidth || 2;
+  });
 
   networkNodes = new vis.DataSet(nodes);
   networkEdges = new vis.DataSet(edges);
@@ -714,8 +813,10 @@ function renderTree() {
       
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       path.setAttribute('d', pathData);
-      path.setAttribute('class', 'family-link guide');
+                  path.setAttribute('class', 'family-link guide');
       path.setAttribute('id', `path-${idx}`);
+      path.dataset.edgeId = edge.id;
+      path.style.opacity = state.lineageHover?.vividEdges.has(edge.id) ? '1' : state.lineageHover ? '0.12' : '';
       state.svgOverlay.appendChild(path);
       
       // Create animated dot
@@ -746,6 +847,15 @@ function renderTree() {
   network.on('dragEnd', () => {
     if (classicTree) return;
     setTimeout(() => network?.setOptions({physics: {enabled: false}}), 400);
+  });
+  network.on('hoverNode', ({node}) => {
+    if (personById.has(node)) applyLineageHover(node, people, unions, parentsOf);
+  });
+  network.on('blurNode', () => clearLineageHover());
+  network.on('mousemove', ({pointer}) => {
+    const nodeId = network.getNodeAt(pointer.canvas);
+    if (personById.has(nodeId)) applyLineageHover(nodeId, people, unions, parentsOf);
+    else if (state.lineageHover) clearLineageHover();
   });
   network.on('afterDrawing', () => animateConnections());
   network.on('zoom', () => animateConnections());
