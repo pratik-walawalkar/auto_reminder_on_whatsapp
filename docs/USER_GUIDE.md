@@ -15,21 +15,22 @@ Contact an administrator if you do not have an account or cannot sign in. There 
 ## Explore the family tree
 
 - **Open a person:** select a card in the tree. A panel slides in from the right with that person's details and an edit form.
-- **Switch to another person:** while the panel is open, select a different card. The panel updates in place — you do not need to close it first.
+- **Switch to another person:** while the panel is open, select a different card. The panel updates in place â€” you do not need to close it first.
 - **Move around:** drag an empty area of the tree.
 - **Zoom:** use your mouse wheel or trackpad. On a touch device, use the browser zoom controls if required; the tree can still be dragged.
 - **Reset view:** select **Reset view** to return to the starting position and zoom.
 - **Search:** type a name in the **Search** field in the top header. Matching cards stay vivid, unmatched cards and links fade, and the first match is centered automatically. Clear the field to restore the full tree.
+- **Lock an ancestral path:** hold **Shift** while hovering a person. Their ancestral path stays highlighted while you move to an ancestor card, so you can double-click it to edit without losing the trail. Release **Shift** to restore normal clarity.
 - **View mode:** use **View: Organic | Classic Tree** in the toolbar. Organic is the free-form layout; Classic Tree locks generations into top-down horizontal lanes, keeps spouses side-by-side, and places their children beneath the couple. Double-click a card to open its details.
 - **Time travel:** move **View up to** to show people born on or before a selected year.
 - **Switch theme:** select the sun/moon button in the header to toggle light and dark appearance. Your choice is remembered on this device.
 
-Selecting a person shows their birth/death information, roots, migration history, tags, and notes, followed by an edit form for that person. A locked padlock on a card means that person is marked private — non-administrators see only their name and place; sensitive details are hidden until an administrator signs in.
+Selecting a person shows their birth/death information, roots, migration history, tags, and notes, followed by an edit form for that person. A locked padlock on a card means that person is marked private â€” non-administrators see only their name and place; sensitive details are hidden until an administrator signs in.
 
 ## Suggest a new family member
 
 1. Select **+ Add family member**. The same right-side panel opens, empty and ready for a new entry.
-2. Enter the person's first name, last name, and gender. A person ID is generated for you automatically from the name (falling back to birth year, then a number, only if that name is already used) — you do not need to invent one.
+2. Enter the person's first name, last name, and gender. A person ID is generated for you automatically from the name (falling back to birth year, then a number, only if that name is already used) â€” you do not need to invent one.
 3. Birth date is optional. Enter as much as you know (a year alone is fine, e.g. `1948`) or leave it blank if unknown; it will be stored as "unknown".
 4. Choose a relationship:
    - **No known parents / start a branch** adds a separate branch.
@@ -55,13 +56,21 @@ Editing a person only changes the fields shown in the form; other recorded detai
 
 This submits a deletion request; the person is not removed until an administrator approves it. Approval also detaches the person from any recorded marriage/parentage without affecting other family members in that family unit.
 
-## For administrators
+## Profile menu and account security
 
-Administrators see **Review proposals** and **Manage users** in the header.
+Select the circular profile avatar in the header to open the account popover. The displayed initials, name, and username are taken from the signed-in account; they are not fixed to a particular person.
+
+- **Manage Profile & Security** opens the profile modal, where you can upload a picture or change your password.
+- **Manage Approvals** opens pending family-history proposals for administrator review.
+- **Manage Users** opens account administration for administrators.
+- **Help & Guide** opens this guide.
+- **Sign Out** ends the current session.
+
+Uploaded profile pictures are stored locally in this browser and are not written to the family ledger.
 
 ### Reviewing proposals
 
-1. Open **Review proposals**.
+1. Open the profile popover and select **Manage Approvals**.
 2. Read the proposed data (additions, edits, or deletions) and verify it with the contributor or family evidence.
 3. Select **Approve** to update the official ledger, or **Reject** to leave it unchanged.
 
@@ -70,7 +79,7 @@ Approved updates are validated and backed up automatically.
 ### Managing family accounts
 
 1. Open **Manage users**.
-2. To add someone, fill in their display name, a username, a temporary password (at least 12 characters), and a role, then select **Create account**. Share the username and temporary password with them directly and privately — never over a public channel.
+2. To add someone, fill in their display name, a username, a temporary password (at least 12 characters), and a role, then select **Create account**. Share the username and temporary password with them directly and privately â€” never over a public channel.
 3. To change an existing account, use **Make admin**/**Make member** to change its role, **Reset password** to set a new temporary password, or **Delete** to remove the account.
 4. The system always keeps at least one administrator: you cannot demote or delete the last remaining admin, and you cannot delete your own account.
 
@@ -92,4 +101,4 @@ Never share credentials, the backup passphrase, or Tailnet access outside the fa
 
 ## Privacy
 
-Treat everything in Family Vault as private family information. Do not copy data into public chats, public websites, or untrusted AI tools without the family’s consent.
+Treat everything in Family Vault as private family information. Do not copy data into public chats, public websites, or untrusted AI tools without the familyâ€™s consent.

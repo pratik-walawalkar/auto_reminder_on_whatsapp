@@ -1,7 +1,7 @@
 # Family Vault requirements and use cases
 
 **Status:** Living document  
-**Last updated:** 2026-09-21  
+**Last updated:** 2026-09-25
 **Update rule:** Every new feature, behavior change, integration, or security decision must update this file, related tests, and user-facing documentation in the same change set.
 
 ## Scope
@@ -48,6 +48,7 @@ Family Vault is a self-hosted, mobile-first genealogy tool for a private family 
 | FR-26 | The authenticated dashboard fits the viewport without page scrolling, keeps search in the master header, highlights matching nodes while dimming unmatched nodes and edges, and supports persisted Organic and top-down Classic Tree views. | Implemented | Frontend syntax and Playwright smoke tests |
 | FR-27 | Classic Tree places spouses side-by-side on the same generation tier and routes their children from the midpoint of the couple, without flattening descendant generation rows. | Implemented | Frontend syntax and Playwright smoke tests |
 | FR-28 | Classic Tree uses the earlier vis-network hierarchy with vertical spouse linkage; experimental custom curve and moving-dot overlays are not part of the active layout. | Implemented | Frontend syntax and Playwright smoke tests |
+| FR-29 | Holding Shift while hovering a person locks the ancestral highlight until Shift is released, allowing movement to and double-click editing of an ancestor without resetting dimmed branches. | Implemented | Frontend source regression checks and Playwright interaction diagnostics |
 
 ## Data and integrity requirements
 

@@ -57,7 +57,7 @@ function hide(id) {
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   localStorage.setItem('familyVaultTheme', theme);
-  $('themeToggle').textContent = theme === 'dark' ? '🌙' : '☀️';
+  $('themeToggle').textContent = theme === 'dark' ? 'ðŸŒ™' : 'â˜€ï¸';
 }
 
 function toggleTheme() {
@@ -81,10 +81,7 @@ async function boot() {
 async function enterVault() {
   hide('loginView');
   show('vaultView');
-  $('userName').textContent = state.user.display_name;
-  const isAdmin = state.user.role === 'admin';
-  $('reviewButton').hidden = !isAdmin;
-  $('usersButton').hidden = !isAdmin;
+  initializeAvatarInitials();
   await loadFamily();
 }
 
@@ -300,7 +297,7 @@ function computeLayout(people, unions, parentsOf, levels) {
   const {partnerOf, unionOfCouple, childrenOf} = buildUnionMaps(unions, people);
   const visited = new Set();
   // Populated after root branches are ordered (below), but declared here so the
-  // positionCouple closure can see the same Map once it is filled in — this lets
+  // positionCouple closure can see the same Map once it is filled in â€” this lets
   // "which root branch does this spouse belong to, and how far right did that
   // branch land" bias sibling ordering before that branch has even been placed.
   const personRootIndex = new Map();
@@ -366,7 +363,7 @@ function computeLayout(people, unions, parentsOf, levels) {
       return;
     }
 
-    // Only kids not yet positioned reserve horizontal slot space — one already placed
+    // Only kids not yet positioned reserve horizontal slot space â€” one already placed
     // elsewhere (grafted in via marriage) draws its own connector straight to wherever
     // it actually landed and must NOT leave a gap here, or its unvisited siblings would
     // be pushed off-center away from the trunk for a slot that renders nothing.
@@ -397,7 +394,7 @@ function computeLayout(people, unions, parentsOf, levels) {
       currentX += width + SIBLING_GAP;
     });
 
-    // Re-center over freshly placed children only — a sibling grafted in from
+    // Re-center over freshly placed children only â€” a sibling grafted in from
     // elsewhere keeps their own true position and must not skew this couple.
     const childGroupCenterX = freshCenters.length ? (Math.min(...freshCenters) + Math.max(...freshCenters)) / 2 : centerX;
     const resolvedCenterX = spouseId ? childGroupCenterX - COUPLE_HGAP / 2 : childGroupCenterX;
@@ -412,7 +409,7 @@ function computeLayout(people, unions, parentsOf, levels) {
 
   // Root subtrees: people with no recorded parents. A married-in spouse who
   // also has no parents of their own is only a genuine root if their partner
-  // has none either — otherwise they belong under the partner's real family
+  // has none either â€” otherwise they belong under the partner's real family
   // and get attached when that subtree's recursion reaches them as a spouse.
   const roots = [];
   const rootSeen = new Set();
@@ -444,7 +441,7 @@ function computeLayout(people, unions, parentsOf, levels) {
   const rootMembers = roots.map(([bloodId, spouseId]) => bloodDescendants(bloodId, spouseId));
 
   // Reorder roots greedily so branches linked by a cross-branch marriage sit next to
-  // each other — this is what keeps a grafted child's line short instead of spanning
+  // each other â€” this is what keeps a grafted child's line short instead of spanning
   // the full width of the canvas to reach a distant, unrelated-looking family group.
   const linkCount = (i, j) => {
     let count = 0;
@@ -472,7 +469,7 @@ function computeLayout(people, unions, parentsOf, levels) {
   }
 
   // Record each root's final left-to-right rank and which root every one of its
-  // blood descendants belongs to, before any positioning happens — positionCouple's
+  // blood descendants belongs to, before any positioning happens â€” positionCouple's
   // sibling-ordering bias (above) needs this to know where a spouse's OTHER branch
   // will eventually land, even though that branch may be positioned later or earlier.
   orderedIdx.forEach((idx, rank) => {
@@ -688,7 +685,7 @@ function renderTree() {
     const trunkFrom = hasCouple ? intersectionId : sourceId;
     edges.push({from: trunkFrom, to: branchId, edgeKind: 'parent', arrows: {to: {enabled: false}}, label: '', color: {color: '#6366f1', opacity: 0.9}, width: 2, smooth: {enabled: false}});
     // Every child, including one grafted in elsewhere via marriage and sitting at a
-    // different row, still branches off the same shared trunk point — this keeps the
+    // different row, still branches off the same shared trunk point â€” this keeps the
     // single-trunk-splits-into-many look consistent no matter where the child lands.
     group.childIds.forEach(childId => edges.push(labeledEdge({from: branchId, to: childId, edgeKind: 'parent', label: childRelationLabel(group.parentIds, childId), arrows: {to: {enabled: true, scaleFactor: 0.8}}, color: {color: '#6366f1', highlight: '#a5b4fc'}, width: 2, smooth: {enabled: true, type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.45}})));
   });
@@ -978,11 +975,11 @@ function openPanel(person = null) {
     .join('');
   const existingTags = (person?.tags || []).map(tag => `<span class="tag-badge">${escapeHtml(tag)}</span>`).join('');
   const contextBlock = person
-    ? `${person.is_private ? '<p class="privacy-note">🔒 Marked private — sensitive details are hidden from non-admin members.</p>' : ''}
+    ? `${person.is_private ? '<p class="privacy-note">ðŸ”’ Marked private â€” sensitive details are hidden from non-admin members.</p>' : ''}
        ${existingTags ? `<div class="tag-badges">${existingTags}</div>` : ''}
        <div class="detail-grid">
          <div class="detail-card"><strong>Born</strong>${escapeHtml(birth.date || 'Unknown')}<br>${escapeHtml(birth.location || '')}</div>
-         <div class="detail-card"><strong>Died</strong>${escapeHtml(death.date || '—')}<br>${escapeHtml(death.location || '')}</div>
+         <div class="detail-card"><strong>Died</strong>${escapeHtml(death.date || 'â€”')}<br>${escapeHtml(death.location || '')}</div>
          <div class="detail-card"><strong>Roots</strong>${escapeHtml(culture.native_village || 'Not recorded')}<br>${escapeHtml(culture.gotra_clan || '')}</div>
        </div>
        ${migrationItems ? `<h3>Migration</h3><ul>${migrationItems}</ul>` : ''}`
@@ -1000,7 +997,7 @@ function openPanel(person = null) {
     <label class="wide" id="relativeField" hidden><span id="relativeFieldLabel">Link to</span><select name="relative_id" id="relativeSelect"><option value="">Choose a family member</option>${relativeOptions}</select></label>
     <label class="wide" id="coParentField" hidden>Other parent (optional, links the pair together as a couple)<select name="co_parent_id" id="coParentSelect"><option value="">None / unknown</option>${relativeOptions}</select></label>
     <label class="wide" id="parentGroupField" hidden>Paired parents<select id="parentGroupSelect" name="parent_group" multiple size="3">${parentGroupOptionsHtml(parentIds)}</select></label>
-    <p class="wide relationship-summary">Parents: ${escapeHtml(parentIds.map(id => state.family.individuals.find(candidate => candidate.id === id)?.first_name || id).join('-') || 'None')} · Spouses: ${escapeHtml(spouseIds.map(id => state.family.individuals.find(candidate => candidate.id === id)?.first_name || id).join(', ') || 'None')}</p>`;
+    <p class="wide relationship-summary">Parents: ${escapeHtml(parentIds.map(id => state.family.individuals.find(candidate => candidate.id === id)?.first_name || id).join('-') || 'None')} Â· Spouses: ${escapeHtml(spouseIds.map(id => state.family.individuals.find(candidate => candidate.id === id)?.first_name || id).join(', ') || 'None')}</p>`;
   const deleteButton = person ? '<button type="button" class="danger" id="deleteButton" aria-label="Delete person" title="Delete person"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14M10 11v5m4-5v5"/></svg></button>' : '';
   const reviewNote = state.user.role === 'admin'
     ? 'As an administrator, your changes apply to the tree immediately.'
@@ -1121,8 +1118,8 @@ async function submitDeleteProposal(person) {
 
 // ---------- Admin: review proposals ----------
 function describeProposal(proposal) {
-  if (proposal.kind === 'delete') return `delete · ${escapeHtml(proposal.target_id)}`;
-  return `${escapeHtml(proposal.kind)} · ${escapeHtml(proposal.target_id || proposal.payload.id)}`;
+  if (proposal.kind === 'delete') return `delete Â· ${escapeHtml(proposal.target_id)}`;
+  return `${escapeHtml(proposal.kind)} Â· ${escapeHtml(proposal.target_id || proposal.payload.id)}`;
 }
 
 async function openReviews() {
@@ -1457,6 +1454,129 @@ function triggerPumlExport() {
   closeExportMenu();
 }
 
+// ---------- Profile Popover & Security Modal ----------
+function toggleProfilePopover() {
+  const card = document.getElementById('profilePopoverCard');
+  if (!card) return;
+  const isHidden = card.hidden;
+  const exportDropdown = document.getElementById('exportDropdownMenu');
+  if (exportDropdown) exportDropdown.classList.add('hidden');
+  if (isHidden) {
+    card.hidden = false;
+    document.getElementById('userAvatarBtn')?.setAttribute('aria-expanded', 'true');
+    window.setTimeout(() => window.addEventListener('click', closePopoverOnOutsideClick), 0);
+  } else {
+    closePopoverCardMenu();
+  }
+}
+
+function closePopoverCardMenu() {
+  const card = document.getElementById('profilePopoverCard');
+  if (card) card.hidden = true;
+  document.getElementById('userAvatarBtn')?.setAttribute('aria-expanded', 'false');
+  window.removeEventListener('click', closePopoverOnOutsideClick);
+}
+
+function closePopoverOnOutsideClick(event) {
+  const moduleContainer = document.getElementById('userProfileModule');
+  if (moduleContainer && !moduleContainer.contains(event.target)) closePopoverCardMenu();
+}
+
+function openUserProfileModal() {
+  closePopoverCardMenu();
+  document.getElementById('userProfileModal')?.removeAttribute('hidden');
+}
+
+function closeUserProfileModal() {
+  const modal = document.getElementById('userProfileModal');
+  if (modal) modal.hidden = true;
+  const newPassword = document.getElementById('newPasswordInput');
+  const confirmPassword = document.getElementById('confirmPasswordInput');
+  if (newPassword) newPassword.value = '';
+  if (confirmPassword) confirmPassword.value = '';
+}
+
+async function saveProfileSecurityChanges() {
+  const newPassword = document.getElementById('newPasswordInput')?.value || '';
+  const confirmPassword = document.getElementById('confirmPasswordInput')?.value || '';
+  if (newPassword || confirmPassword) {
+    if (newPassword.length < 12) return notice('Password must contain at least 12 characters.');
+    if (newPassword !== confirmPassword) return notice('Passwords do not match.');
+    const username = encodeURIComponent(state.user?.username || '');
+    const response = await api(`/api/admin/users/${username}`, {method: 'PATCH', body: JSON.stringify({password: newPassword})});
+    if (response) notice('Profile security changes saved.');
+  }
+  closeUserProfileModal();
+}
+
+function handlePopoverAction(action) {
+  closePopoverCardMenu();
+  if (action === 'signout') document.getElementById('logoutButton')?.click();
+  if (action === 'manage-approvals') openReviews();
+  if (action === 'manage-users') openUsers();
+  if (action === 'help') window.location.href = '/help';
+}
+
+function initializeAvatarInitials() {
+  if (!state.user) return;
+  const fullName = state.user.display_name || state.user.username || '';
+  const nameParts = fullName.trim().split(/\s+/).filter(Boolean);
+  let avatarInitials = '?';
+
+  if (nameParts.length === 0) {
+    avatarInitials = '?';
+  } else if (nameParts.length === 1) {
+    avatarInitials = nameParts[0][0].toUpperCase();
+  } else {
+    avatarInitials = (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase();
+  }
+
+  const initialsTargets = ['avatarInitialsDisplay', 'popoverAvatarInitials', 'modalAvatarInitials'];
+  initialsTargets.forEach(id => {
+    const target = document.getElementById(id);
+    if (target) target.textContent = avatarInitials;
+  });
+
+  const userNameElement = document.getElementById('popoverUserName');
+  if (userNameElement) userNameElement.textContent = fullName || 'User Name';
+  const userEmailElement = document.getElementById('popoverUserEmail');
+  if (userEmailElement) userEmailElement.textContent = state.user.username || '';
+
+  const savedAvatar = localStorage.getItem('user_profile_avatar');
+  if (savedAvatar) {
+    applySavedAvatarData(savedAvatar);
+  }
+}
+
+function handleAvatarUpload(event) {
+  const file = event.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const base64Data = e.target.result;
+      localStorage.setItem('user_profile_avatar', base64Data);
+      applySavedAvatarData(base64Data);
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function applySavedAvatarData(dataString) {
+  const imageTargets = ['avatarImageDisplay', 'popoverAvatarImage', 'modalAvatarImage'];
+  imageTargets.forEach(id => {
+    const image = document.getElementById(id);
+    if (image) {
+      image.src = dataString;
+      image.hidden = false;
+    }
+  });
+  ['avatarInitialsDisplay', 'popoverAvatarInitials', 'modalAvatarInitials'].forEach(id => {
+    const initials = document.getElementById(id);
+    if (initials) initials.hidden = true;
+  });
+}
+
+
 // ---------- Wiring ----------
 $('loginForm').onsubmit = async event => {
   event.preventDefault();
@@ -1471,35 +1591,49 @@ $('loginForm').onsubmit = async event => {
     $('loginError').hidden = false;
   }
 };
-$('logoutButton').onclick = async () => {
-  await api('/api/logout', {method: 'POST'});
-  state.user = null;
-  state.csrf = null;
-  hide('vaultView');
-  show('loginView');
-};
-$('themeToggle').onclick = toggleTheme;
-$('exportDropdownBtn').onclick = event => {
-  event.stopPropagation();
-  const menu = $('exportDropdownMenu');
-  const hidden = menu.classList.toggle('hidden');
-  $('exportDropdownBtn').setAttribute('aria-expanded', String(!hidden));
-};
-$('svgExportBtn').onclick = triggerSvgExport;
-$('pngExportBtn').onclick = triggerPngExport;
-$('existingGedcomBtn').onclick = triggerGedcomExport;
-$('pumlExportBtn').onclick = triggerPumlExport;
+if ($('logoutButton')) {
+  $('logoutButton').onclick = async () => {
+    try {
+      await api('/api/logout', {method: 'POST'});
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+    state.user = null;
+    state.csrf = null;
+    hide('vaultView');
+    show('loginView');
+  };
+}
+if ($('themeToggle')) {
+  $('themeToggle').onclick = toggleTheme;
+}
+if ($('exportDropdownBtn')) {
+  $('exportDropdownBtn').onclick = event => {
+    event.stopPropagation();
+    const menu = $('exportDropdownMenu');
+    const hidden = menu.classList.toggle('hidden');
+    $('exportDropdownBtn').setAttribute('aria-expanded', String(!hidden));
+  };
+}
+if ($('svgExportBtn')) $('svgExportBtn').onclick = triggerSvgExport;
+if ($('pngExportBtn')) $('pngExportBtn').onclick = triggerPngExport;
+if ($('existingGedcomBtn')) $('existingGedcomBtn').onclick = triggerGedcomExport;
+if ($('pumlExportBtn')) $('pumlExportBtn').onclick = triggerPumlExport;
 document.addEventListener('click', event => {
-  if (!$('exportMenuContainer').contains(event.target)) closeExportMenu();
+  const container = $('exportMenuContainer');
+  if (container && !container.contains(event.target)) closeExportMenu();
 });
-$('edgeStyleSelect').value = state.edgeStyle;
-$('edgeStyleSelect').onchange = event => {
-  state.edgeStyle = event.target.value;
-  localStorage.setItem('familyVaultEdgeStyle', state.edgeStyle);
-  renderTree();
-};
-$('searchInput').oninput = renderTree;
-$('yearSlider').oninput = renderTree;
+const edgeSelect = $('edgeStyleSelect');
+if (edgeSelect) {
+  edgeSelect.value = state.edgeStyle;
+  edgeSelect.onchange = event => {
+    state.edgeStyle = event.target.value;
+    localStorage.setItem('familyVaultEdgeStyle', state.edgeStyle);
+    renderTree();
+  };
+}
+if ($('searchInput')) $('searchInput').oninput = renderTree;
+if ($('yearSlider')) $('yearSlider').oninput = renderTree;
 function setViewMode(mode) {
   if (state.viewMode === mode && network) return;
   teardownNetwork();
@@ -1512,15 +1646,18 @@ function setViewMode(mode) {
   });
   renderTree();
 }
-$('organicView').onclick = () => setViewMode('organic');
-$('classicView').onclick = () => setViewMode('classic');
+if ($('organicView')) $('organicView').onclick = () => setViewMode('organic');
+if ($('classicView')) $('classicView').onclick = () => setViewMode('classic');
 setViewMode(state.viewMode);
-$('resetView').onclick = () => {
-  if (network) network.fit({animation: true});
-};
-$('addButton').onclick = () => openPanel();
-$('reviewButton').onclick = openReviews;
-$('usersButton').onclick = openUsers;
+if ($('resetView')) {
+  $('resetView').onclick = () => {
+    if (network) network.fit({animation: true});
+  };
+}
+if ($('addButton')) $('addButton').onclick = () => openPanel();
 document.querySelectorAll('[data-close]').forEach(button => (button.onclick = () => hide(button.dataset.close)));
-$('overlayBackdrop').onclick = () => OVERLAY_IDS.forEach(hide);
+const backdrop = $('overlayBackdrop');
+if (backdrop) {
+  backdrop.onclick = () => OVERLAY_IDS.forEach(hide);
+}
 boot();

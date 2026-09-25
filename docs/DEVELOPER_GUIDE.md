@@ -116,7 +116,7 @@ A restore operation verifies the decrypted SQLite database before atomically rep
 
 ## GEDCOM export
 
-`gedcom.py` is a small, dependency-free GEDCOM 5.5.1 writer (`build_gedcom`, `export_gedcom`) — it does not use or embed the Gramps Desktop codebase (a large GTK/Celery/SQLAlchemy stack that was evaluated and rejected as too heavy for this project; see `gramps-web-reference/` and `gramps-web-api-reference/` if that evaluation needs to be revisited). It maps `individuals`/`unions` to INDI/FAM records: `NAME`/`SEX`/`BIRT`/`DEAT` with `DATE`/`PLAC`, `FAMC`/`FAMS` links, `HUSB`/`WIFE`/`CHIL`, and `MARR`. Cultural metadata, migration history, biographical notes, and tags are emitted as `NOTE` lines; a private person gets `1 RESN privacy`. Available via:
+`gedcom.py` is a small, dependency-free GEDCOM 5.5.1 writer (`build_gedcom`, `export_gedcom`) â€” it does not use or embed the Gramps Desktop codebase (a large GTK/Celery/SQLAlchemy stack that was evaluated and rejected as too heavy for this project; see `gramps-web-reference/` and `gramps-web-api-reference/` if that evaluation needs to be revisited). It maps `individuals`/`unions` to INDI/FAM records: `NAME`/`SEX`/`BIRT`/`DEAT` with `DATE`/`PLAC`, `FAMC`/`FAMS` links, `HUSB`/`WIFE`/`CHIL`, and `MARR`. Cultural metadata, migration history, biographical notes, and tags are emitted as `NOTE` lines; a private person gets `1 RESN privacy`. Available via:
 
 - CLI: `py -3 ingest.py export-gedcom [output.ged]`
 - HTTP: `GET /api/export/gedcom` (`@admin_required`, streams `family_vault.ged`)
@@ -133,7 +133,9 @@ Theme: `data-theme="dark"|"light"` on `<html>` selects the token block in `stati
 
 The authenticated shell is a fixed `100vh` flex column: `#vaultView` owns the header, controls, and flexing `#treeViewport`, while `html`/`body`/`#app` suppress page scrolling. Search lives in `.header-search`; `renderTree()` keeps eligible people in the dataset, sets unmatched node/edge opacity to `0.12`, and focuses the first match with `network.focus()`. Clearing the query restores opacity and the normal fit behavior.
 
-`state.viewMode` persists as `familyVaultView` (`organic` or `classic`). Organic uses repulsion physics and permits node dragging. Classic uses the earlier vis-network hierarchical layout with physics disabled, allowing spouse relationships to retain their earlier vertical linkage behavior. Custom SVG curve and moving-dot experiments are disabled.
+The header profile module uses `#userProfileModule` and `#profilePopoverCard`. `initializeAvatarInitials()` derives initials from the authenticated `state.user.display_name`, falling back to `state.user.username`; the same targets are updated in the popover and profile modal. `applySavedAvatarData()` synchronizes a browser-local avatar image across all three views. Account actions, including **Manage Approvals**, are routed from the popover instead of occupying header space. The password form calls the existing administrator user-update endpoint and retains its minimum-length validation.
+
+`state.viewMode` persists as `familyVaultView` (`organic` or `classic`). Organic uses repulsion physics and permits node dragging. Classic uses the earlier vis-network hierarchical layout with physics disabled, allowing spouse relationships to retain their earlier vertical linkage behavior. Custom SVG curve and moving-dot experiments are disabled. Holding Shift during an ancestral hover locks the lineage opacity state across `hoverNode`, `blurNode`, and `mousemove` transitions; releasing Shift explicitly resets it.
 
 ## Tests and validation
 
