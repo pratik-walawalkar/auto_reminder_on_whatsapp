@@ -57,7 +57,7 @@ function hide(id) {
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   localStorage.setItem('familyVaultTheme', theme);
-  $('themeToggle').textContent = theme === 'dark' ? 'ðŸŒ™' : 'â˜€ï¸';
+  $('themeToggle').textContent = theme === 'dark' ? '🌙' : '☀️';
 }
 
 function toggleTheme() {
@@ -289,8 +289,8 @@ function computeLayout(people, unions, parentsOf, levels) {
   const COUPLE_HGAP = 260;    // Fixed spouse separation; the union midpoint sits 80px from either partner.
   const LEVEL_HEIGHT = 300;   // Fixed generation-row spacing.
   const NODE_WIDTH = 230;     // Base horizontal slot for a single column (matches card width)
-  const SIBLING_GAP = 30;     // Single-node centers are 260px apart.
-  const ROOT_GAP = 450;       // Minimum isolation buffer between independent branches.
+    const SIBLING_GAP = 20;     // Compact gap between adjacent child subtrees.
+  const ROOT_GAP = 180;       // Compact buffer between independent branches.
   const MARGIN_X = 300;
   const MARGIN_Y = 60;
 
@@ -303,17 +303,23 @@ function computeLayout(people, unions, parentsOf, levels) {
   const personRootIndex = new Map();
   const rankOfRoot = new Map();
 
-  // Width required to lay out a couple (or single parent) and all descendants.
+    // Width required to lay out a couple (or single parent) and all descendants.
+  // centerX is the union midpoint, so a couple's two cards occupy the complete
+  // footprint instead of competing for the same single-card sibling slot.
+  const getOwnWidth = spouseId => spouseId
+    ? NODE_WIDTH + COUPLE_HGAP
+    : NODE_WIDTH;
   const getSubtreeWidth = (bloodId, spouseId) => {
     const coupleKey = spouseId ? [bloodId, spouseId].sort().join('|') : bloodId;
     const kids = (childrenOf.get(coupleKey) || []).slice().sort();
-    if (!kids.length) return NODE_WIDTH;
+    const ownWidth = getOwnWidth(spouseId);
+    if (!kids.length) return ownWidth;
     let total = 0;
     kids.forEach(kidId => {
       const spouse = partnerOf.get(kidId);
-      total += (spouse ? getSubtreeWidth(kidId, spouse) : NODE_WIDTH) + SIBLING_GAP;
+      total += getSubtreeWidth(kidId, spouse) + SIBLING_GAP;
     });
-    return Math.max(total - SIBLING_GAP, NODE_WIDTH);
+    return Math.max(total - SIBLING_GAP, ownWidth);
   };
 
   // Places bloodId at (centerX, y), their spouse (if any) directly below,
@@ -351,14 +357,14 @@ function computeLayout(people, unions, parentsOf, levels) {
     // Order siblings by that bias so a child's cross-branch marriage shortens its
     // connector, instead of sitting in the middle by alphabetical accident.
     const kids = (childrenOf.get(coupleKey) || []).slice().sort().sort((a, b) => sortKeyFor(a) - sortKeyFor(b));
-    if (!kids.length) {
-      positions.set(bloodId, {x: Math.round(centerX), y: Math.round(y)});
+        if (!kids.length) {
+      const primaryX = spouseId ? centerX - COUPLE_HGAP / 2 : centerX;
+      positions.set(bloodId, {x: Math.round(primaryX), y: Math.round(y)});
       if (spouseId) {
-        // Spouse positioned horizontally to the right of the blood relation, same Y coordinate
-        positions.set(spouseId, {x: Math.round(centerX + COUPLE_HGAP), y: Math.round(y)});
+        // centerX is the union midpoint; keep both cards inside the reserved slot.
+        positions.set(spouseId, {x: Math.round(centerX + COUPLE_HGAP / 2), y: Math.round(y)});
         const unionId = unionOfCouple.get(coupleKey);
-        // Union node sits at the center X between the two spouses
-        if (unionId) positions.set(unionId, {x: Math.round(centerX + COUPLE_HGAP / 2), y: Math.round(y)});
+        if (unionId) positions.set(unionId, {x: Math.round(centerX), y: Math.round(y)});
       }
       return;
     }
@@ -380,9 +386,16 @@ function computeLayout(people, unions, parentsOf, levels) {
     const childY = y + LEVEL_HEIGHT;
     // Children belong beneath the parent for a single node, or beneath the
     // midpoint of the couple for a side-by-side pair.
-    const childAnchorX = spouseId ? centerX + COUPLE_HGAP / 2 : centerX;
+        const childAnchorX = centerX;
     let currentX = childAnchorX - totalWidth / 2;
-    const freshCenters = [];
+        const childCenters = [];
+    kids.forEach(kidId => {
+      const spouse = partnerOf.get(kidId);
+      const existingCenter = spouse
+        ? positions.get(unionOfCouple.get([kidId, spouse].sort().join('|')))?.x
+        : positions.get(kidId)?.x;
+      if (existingCenter !== undefined) childCenters.push(existingCenter);
+    });
     freshKids.forEach((kidId, idx) => {
       const width = widths[idx];
       const kidCenterX = currentX + width / 2;
@@ -390,18 +403,21 @@ function computeLayout(people, unions, parentsOf, levels) {
       const spouse = partnerOf.get(kidId);
       if (spouse) visited.add(spouse);
       positionCouple(kidId, spouse, kidCenterX, childY, ownRootIdx);
-      freshCenters.push(positions.get(kidId)?.x ?? kidCenterX);
+      const placedCenter = spouse
+        ? positions.get(unionOfCouple.get([kidId, spouse].sort().join('|')))?.x ?? kidCenterX
+        : positions.get(kidId)?.x ?? kidCenterX;
+      childCenters.push(placedCenter);
       currentX += width + SIBLING_GAP;
     });
 
-    // Re-center over freshly placed children only â€” a sibling grafted in from
-    // elsewhere keeps their own true position and must not skew this couple.
-    const childGroupCenterX = freshCenters.length ? (Math.min(...freshCenters) + Math.max(...freshCenters)) / 2 : centerX;
-    const resolvedCenterX = spouseId ? childGroupCenterX - COUPLE_HGAP / 2 : childGroupCenterX;
-    positions.set(bloodId, {x: Math.round(resolvedCenterX), y: Math.round(y)});
+    // Center over all child unions, including grafted children already positioned
+    // elsewhere, so cross-branch family groups remain visually connected.
+    const childGroupCenterX = childCenters.length ? (Math.min(...childCenters) + Math.max(...childCenters)) / 2 : centerX;
+    const primaryX = spouseId ? childGroupCenterX - COUPLE_HGAP / 2 : childGroupCenterX;
+    positions.set(bloodId, {x: Math.round(primaryX), y: Math.round(y)});
     if (spouseId) {
       // Keep the couple's union midpoint aligned with the center of its child group.
-      positions.set(spouseId, {x: Math.round(resolvedCenterX + COUPLE_HGAP), y: Math.round(y)});
+      positions.set(spouseId, {x: Math.round(childGroupCenterX + COUPLE_HGAP / 2), y: Math.round(y)});
       const unionId = unionOfCouple.get(coupleKey);
       if (unionId) positions.set(unionId, {x: Math.round(childGroupCenterX), y: Math.round(y)});
     }
@@ -443,9 +459,12 @@ function computeLayout(people, unions, parentsOf, levels) {
   // Reorder roots greedily so branches linked by a cross-branch marriage sit next to
   // each other â€” this is what keeps a grafted child's line short instead of spanning
   // the full width of the canvas to reach a distant, unrelated-looking family group.
-  const linkCount = (i, j) => {
+      const linkCount = (i, j) => {
     let count = 0;
-    rootMembers[i].forEach(id => { if (rootMembers[j].has(partnerOf.get(id))) count += 1; });
+    rootMembers[i].forEach(id => {
+      if (rootMembers[j].has(partnerOf.get(id))) count += 1;
+      if (rootMembers[j].has(id)) count += 1;
+    });
     return count;
   };
   const remaining = new Set(roots.map((_, idx) => idx));
@@ -488,7 +507,12 @@ function computeLayout(people, unions, parentsOf, levels) {
     // Branches joined by a cross-branch marriage sit noticeably closer together than
     // wholly unrelated branches, like the reference layout keeps married-in families
     // near the household they married into instead of spread evenly across the canvas.
-    const gap = previousIdx !== null && linkCount(previousIdx, idx) > 0 ? ROOT_GAP * 0.35 : ROOT_GAP;
+        const currentRank = orderedIdx.indexOf(idx);
+    const nextIdx = orderedIdx[currentRank + 1];
+    const nextHasPlacedLink = nextIdx !== undefined && orderedIdx
+      .slice(0, currentRank + 1)
+      .some(placedIdx => linkCount(placedIdx, nextIdx) > 0);
+    const gap = nextHasPlacedLink ? ROOT_GAP * 0.35 : ROOT_GAP;
     currentX += width + gap;
     previousIdx = idx;
   });
@@ -768,7 +792,7 @@ function renderTree() {
       arrows: {to: {enabled: true, scaleFactor: 0.8}},
       // Classic mode: straight angular segments (traditional pedigree-chart look).
       // Organic mode: smooth cubic-Bezier curves.
-      smooth: classicTree ? {enabled: false} : {enabled: true, type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.5},
+      smooth: {enabled: true, type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.5},
       font: {size: 11, color: '#94a3b8', strokeWidth: 3, strokeColor: '#0f172a', align: 'horizontal'},
       selectionWidth: 2,
       physics: false

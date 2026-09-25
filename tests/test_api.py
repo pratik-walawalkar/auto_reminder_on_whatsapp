@@ -67,8 +67,20 @@ def test_classic_tree_uses_union_hubs_with_straight_edges_and_manual_layout():
     # our manually computed x/y coordinates from computeLayout() are not overridden.
     assert "layout: {hierarchical: {enabled: false}}" in source
     assert "physics: classicTree ? {enabled: false}" in source
-    # Classic mode edges are straight (no smoothing), matching the pedigree-chart look.
-    assert "smooth: classicTree ? {enabled: false}" in source
+    assert "const NODE_WIDTH = 230" in source
+    assert "const COUPLE_HGAP = 260" in source
+    assert "const SIBLING_GAP = 20" in source
+    assert "const ROOT_GAP = 180" in source
+    assert "const LEVEL_HEIGHT = 300" in source
+    # Married children reserve two cards plus the spouse gap; unmarried children
+    # continue to reserve a single card slot.
+    assert "const getOwnWidth = spouseId => spouseId" in source
+    assert "NODE_WIDTH + COUPLE_HGAP" in source
+    assert "const w = spouse ? getSubtreeWidth(kidId, spouse) : NODE_WIDTH" in source
+    assert "const primaryX = spouseId ? centerX - COUPLE_HGAP / 2 : centerX" in source
+    assert "if (rootMembers[j].has(id)) count += 1" in source
+    assert "const nextHasPlacedLink = nextIdx !== undefined" in source
+    assert "smooth: {enabled: true, type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.5}" in source
     assert "scale: Math.max(network.getScale(), 0.82)" in source
 
 
