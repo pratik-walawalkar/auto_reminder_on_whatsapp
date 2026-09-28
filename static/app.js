@@ -187,8 +187,8 @@ function applyLineageHover(nodeId, people, unions, parentsOf) {
     width: vividEdges.has(edge.id) ? Math.max(edge._lineageWidth || 2, 4) : edge._lineageWidth || 2,
     selectionWidth: vividEdges.has(edge.id) ? 6 : edge._lineageSelectionWidth || 2,
     color: vividEdges.has(edge.id)
-      ? edge._lineageColor
-      : {color: 'rgba(148, 163, 184, 0.12)', highlight: 'rgba(148, 163, 184, 0.12)', hover: 'rgba(148, 163, 184, 0.12)'}
+        ? edge._lineageColor
+        : {color: 'rgba(148, 163, 184, 0.12)', highlight: 'rgba(148, 163, 184, 0.12)', hover: 'rgba(148, 163, 184, 0.12)'}
   })));
   state.lineageHover = {nodeId, lineage, vividNodes, vividEdges};
   lastPointerNodeId = nodeId;
@@ -204,8 +204,9 @@ function clearLineageHover() {
     opacity: edge._lineageOpacity ?? 1,
     width: edge._lineageWidth || 2,
     selectionWidth: edge._lineageSelectionWidth || 2,
-    color: edge._lineageColor
+        color: edge._lineageColor
   })));
+
   state.lineageHover = null;
 }
 
@@ -315,7 +316,7 @@ function computeLayout(people, unions, parentsOf, levels) {
   const COUPLE_HGAP = 260;    // Fixed spouse separation; the union midpoint sits 80px from either partner.
   const LEVEL_HEIGHT = 300;   // Fixed generation-row spacing.
   const NODE_WIDTH = 230;     // Base horizontal slot for a single column (matches card width)
-    const SIBLING_GAP = 20;     // Compact gap between adjacent child subtrees.
+  const SIBLING_GAP = 20;     // Compact gap between adjacent child subtrees.
   const ROOT_GAP = 180;       // Compact buffer between independent branches.
   const MARGIN_X = 300;
   const MARGIN_Y = 60;
@@ -627,6 +628,7 @@ function renderTree() {
   };
   const activeTheme = getCurrentThemeStyle();
   const isLightTheme = activeTheme === WORKSPACE_THEME_LIGHT;
+    const relationshipColor = getComputedStyle(document.documentElement).getPropertyValue('--nb').trim();
   const themeColors = isLightTheme
     ? {nodeBackground: activeTheme.background, nodeText: activeTheme.textColor, nodeMuted: activeTheme.edgeColor, edge: activeTheme.edgeColor, edgeHighlight: '#4a3e72', dimEdge: 'rgba(112, 99, 87, 0.12)'}
     : {nodeBackground: activeTheme.background, nodeText: activeTheme.textColor, nodeMuted: '#8b93b8', edge: '#6366f1', edgeHighlight: '#a5b4fc', dimEdge: 'rgba(99, 102, 241, 0.12)'};
@@ -676,7 +678,7 @@ function renderTree() {
       const coupleKey = [...pids].sort().join('|');
       if (drawnCouples.has(coupleKey)) return;
       drawnCouples.add(coupleKey);
-      edges.push(labeledEdge({from: pids[0], to: pids[1], edgeKind: 'union', label: 'Spouse', arrows: {to: {enabled: false}}, color: {color: themeColors.edge, opacity: 0.72}, width: 1.6, dashes: [4, 4], smooth: {enabled: false}, ...organicEdgePhysics('union', pids)}));
+      edges.push(labeledEdge({from: pids[0], to: pids[1], edgeKind: 'union', label: 'Spouse', arrows: {to: {enabled: false}}, color: {color: relationshipColor, opacity: 0.9}, width: 1.8, dashes: [4, 4], smooth: {enabled: true, type: 'cubicBezier', forceDirection: 'horizontal', roundness: 0.25}, ...organicEdgePhysics('union', pids)}));
     });
   }
   const parentGroups = new Map();
@@ -710,7 +712,7 @@ function renderTree() {
     }
     // Single child: connect directly, no need for a shared trunk to split.
     if (group.childIds.length < 2 && !hasCouple) {
-      group.childIds.forEach(childId => edges.push(labeledEdge({from: sourceId, to: childId, edgeKind: 'parent', label: childRelationLabel(group.parentIds, childId), arrows: {to: {enabled: true, scaleFactor: 0.8}}, color: {color: themeColors.edge, highlight: themeColors.edgeHighlight}, width: 2, smooth: classicTree ? {enabled: false} : {enabled: true, type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.5}})));
+      group.childIds.forEach(childId => edges.push(labeledEdge({from: sourceId, to: childId, edgeKind: 'parent', label: childRelationLabel(group.parentIds, childId), arrows: {to: {enabled: true, scaleFactor: 0.8}}, color: {color: themeColors.edge, highlight: themeColors.edgeHighlight}, width: 2, smooth: {enabled: true, type: 'cubicBezier', forceDirection: 'vertical', roundness: classicTree ? 0.35 : 0.5}})));
       return;
     }
     // Whether one parent or a couple: a single trunk drops from the parent (or the
@@ -743,7 +745,7 @@ function renderTree() {
     }
     invisibleClassicNode(branchId, branchPosition, Math.max(...group.childIds.map(childId => levels.get(childId) || 0)) - 0.4);
     const trunkFrom = hasCouple ? intersectionId : sourceId;
-    edges.push({from: trunkFrom, to: branchId, edgeKind: 'parent', arrows: {to: {enabled: false}}, label: '', color: {color: themeColors.edge, opacity: 0.9}, width: 2, smooth: {enabled: false}});
+    edges.push({from: trunkFrom, to: branchId, edgeKind: 'parent', arrows: {to: {enabled: false}}, label: '', color: {color: themeColors.edge, opacity: 0.9}, width: 2, smooth: {enabled: true, type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.25}});
     // Every child, including one grafted in elsewhere via marriage and sitting at a
     // different row, still branches off the same shared trunk point â€” this keeps the
     // single-trunk-splits-into-many look consistent no matter where the child lands.
@@ -756,14 +758,7 @@ function renderTree() {
       edge.opacity = relevant ? 1 : 0.12;
     });
   }
-  if (state.edgeStyle === 'moving-dots') {
-    edges.filter(edge => edge.edgeKind === 'parent').forEach(edge => {
-      edge.color = {color: 'rgba(0, 0, 0, 0)', highlight: 'rgba(0, 0, 0, 0)', hover: 'rgba(0, 0, 0, 0)'};
-      edge.width = 0;
-      edge.selectionWidth = 0;
-      edge.arrows = {to: {enabled: false}};
-    });
-  }
+  
   const container = $('treeCanvas');
   container.innerHTML = '';
 
@@ -776,14 +771,15 @@ function renderTree() {
   svgOverlay.style.top = '0';
   svgOverlay.style.left = '0';
   svgOverlay.style.pointerEvents = 'none';
-  svgOverlay.style.zIndex = '1';
+  svgOverlay.style.zIndex = '2';
   container.style.position = 'relative';
 
   // Define gradients and styles for animated connections
   const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  
   const overlayColors = document.documentElement.dataset.theme === 'light'
-    ? {arrow: '#706357', line: '#706357', dot: '#4a3e72', glow: 'rgba(74, 62, 114, .18)'}
-    : {arrow: '#818cf8', line: '#4bcffa', dot: '#7ee0ff', glow: 'rgba(75, 207, 250, .55)'};
+    ? {arrow: '#706357', line: '#706357', dot: themeColors.edge, glow: 'rgba(74, 62, 114, .18)'}
+    : {arrow: '#818cf8', line: '#4bcffa', dot: themeColors.edge, glow: 'rgba(129, 140, 248, .55)'};
   defs.innerHTML = `
     <marker id="familyArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
       <path d="M0 0 L8 4 L0 8" fill="none" stroke="${overlayColors.arrow}" stroke-width="1.5"></path>
@@ -799,11 +795,11 @@ function renderTree() {
       }
       .connection-overlay circle.link-dot {
         fill: ${overlayColors.dot};
-        filter: drop-shadow(0 0 4px ${overlayColors.glow});
+        filter: drop-shadow(0 0 2px ${overlayColors.glow});
       }
     </style>
-  `;
-  svgOverlay.appendChild(defs);
+    `;
+    svgOverlay.appendChild(defs);
 
     state.svgOverlay = svgOverlay;
   state.edgeAnimationMap = new Map();
@@ -847,16 +843,14 @@ function renderTree() {
     manipulation: {enabled: false}
   };
   
-  network = new vis.Network(container, {nodes: networkNodes, edges: networkEdges}, networkConfig);
+    network = new vis.Network(container, {nodes: networkNodes, edges: networkEdges}, networkConfig);
   
   if (classicTree) {
     // STEP B: After rendering, lock everything and disable any remaining dynamic behavior
     network.once('afterDrawing', () => {
       requestAnimationFrame(() => {
-        // Fit view to all nodes
-        network.fit({animation: false, nodes: people.map(person => person.id), positioning: {padding: 80}});
-        const view = network.getViewPosition();
-        network.moveTo({position: view, scale: Math.max(network.getScale(), 0.82), animation: false});
+        // Match the Reset view button's fit and zoom.
+        network.fit({animation: false});
         
         // STEP C: Disable physics ENTIRELY after initial layout to prevent edge motion
         network.setOptions({physics: {enabled: false}});
@@ -870,46 +864,75 @@ function renderTree() {
   const syncConnectorPositions = () => {};
     const animateConnections = () => {
     if (!state.svgOverlay || state.edgeStyle !== 'moving-dots') return;
-    state.svgOverlay.querySelectorAll('path.family-link, circle.link-dot, animateMotion').forEach(el => el.remove());
+    state.svgOverlay.querySelectorAll('path.family-link, circle.link-dot, text.connection-label, animateMotion').forEach(el => el.remove());
     
     const positions = network.getPositions();
-    const toScreen = (pos) => network.canvasToDOM(pos);
-    
+    const zoom = network.getScale();
+    const toCanvas = pos => network.canvasToDOM(pos);
+        const dotRadius = Math.max(1.5, 3.5 * zoom);
     edges.filter(edge => edge.edgeKind === 'parent').forEach((edge, idx) => {
       const fromPos = positions[edge.from];
       const toPos = positions[edge.to];
       if (!fromPos || !toPos) return;
       
-      const fromScreen = toScreen(fromPos);
-      const toScreen_pos = toScreen(toPos);
+      const renderedEdge = network.body.edges[edge.id];
+      if (!renderedEdge?.edgeType?.fromPoint || !renderedEdge.edgeType.toPoint) return;
+      const fromScreen = toCanvas(renderedEdge.edgeType.fromPoint);
+      const toScreen_pos = toCanvas(renderedEdge.edgeType.toPoint);
+      const via = renderedEdge.edgeType.getViaNode();
+      const viaScreen = via?.[0]?.x !== undefined && via?.[1]?.x !== undefined
+        ? [toCanvas(via[0]), toCanvas(via[1])] : null;
+      const destinationBounds = network.getBoundingBox(edge.to);
+      const destinationCenter = toCanvas(positions[edge.to]);
+      const destinationBottomRight = toCanvas({x: destinationBounds.right, y: destinationBounds.bottom});
+      const tangentStart = viaScreen?.[1] || fromScreen;
+      const tangent = {x: destinationCenter.x - tangentStart.x, y: destinationCenter.y - tangentStart.y};
+      const tangentLength = Math.hypot(tangent.x, tangent.y) || 1;
+      const direction = {x: tangent.x / tangentLength, y: tangent.y / tangentLength};
+      const boundaryDistance = Math.min(
+        (destinationBottomRight.x - destinationCenter.x) / Math.abs(direction.x || Infinity),
+        (destinationBottomRight.y - destinationCenter.y) / Math.abs(direction.y || Infinity)
+      );
+      const nodeBoundary = {
+        x: destinationCenter.x - direction.x * Math.max(0, boundaryDistance - dotRadius - 2),
+        y: destinationCenter.y - direction.y * Math.max(0, boundaryDistance - dotRadius - 2)
+      };
+      const pathData = viaScreen
+        ? `M${fromScreen.x} ${fromScreen.y} C${viaScreen[0].x} ${viaScreen[0].y},${viaScreen[1].x} ${viaScreen[1].y},${nodeBoundary.x} ${nodeBoundary.y}`
+        : `M${fromScreen.x} ${fromScreen.y} L${nodeBoundary.x} ${nodeBoundary.y}`;
       
-      // Compute control points for cubic Bezier
-      const dx = toScreen_pos.x - fromScreen.x;
-      const dy = toScreen_pos.y - fromScreen.y;
-      const bend = Math.max(20, Math.min(100, Math.abs(dy) * 0.3));
-      const c1 = {x: fromScreen.x, y: fromScreen.y + bend};
-      const c2 = {x: toScreen_pos.x, y: toScreen_pos.y - bend};
-      
-      const pathData = `M${fromScreen.x} ${fromScreen.y} C${c1.x} ${c1.y},${c2.x} ${c2.y},${toScreen_pos.x} ${toScreen_pos.y}`;
-      
-      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', pathData);
-                  path.setAttribute('class', 'family-link guide');
-      path.setAttribute('id', `path-${idx}`);
-      path.dataset.edgeId = edge.id;
-      path.style.opacity = state.lineageHover?.vividEdges.has(edge.id) ? '1' : state.lineageHover ? '0.12' : '';
-      state.svgOverlay.appendChild(path);
-      
-      // Create animated dot
       const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       dot.setAttribute('class', 'link-dot');
-      dot.setAttribute('r', '4');
+      dot.setAttribute('r', String(dotRadius));
       dot.setAttribute('id', `dot-${idx}`);
-      
+      dot.dataset.edgeId = edge.id;
+      dot.style.opacity = state.lineageHover?.vividEdges.has(edge.id) ? '1' : state.lineageHover ? '0.12' : '';
+
+      const destination = personById.get(edge.to);
+      const destinationColor = destination?.gender === 'M'
+        ? activeTheme.nodeBorderMale
+        : destination?.gender === 'F' ? activeTheme.nodeBorderFemale : overlayColors.dot;
+      const colorAnimation = document.createElementNS('http://www.w3.org/2000/svg', 'animate');
+      colorAnimation.setAttribute('attributeName', 'fill');
+      colorAnimation.setAttribute('dur', '2s');
+      colorAnimation.setAttribute('values', `${overlayColors.dot};${destinationColor}`);
+      colorAnimation.setAttribute('repeatCount', 'indefinite');
+      colorAnimation.setAttribute('calcMode', 'linear');
+
+      const opacityAnimation = document.createElementNS('http://www.w3.org/2000/svg', 'animate');
+      opacityAnimation.setAttribute('attributeName', 'opacity');
+      opacityAnimation.setAttribute('dur', '2s');
+      opacityAnimation.setAttribute('values', '1;1;0');
+      opacityAnimation.setAttribute('keyTimes', '0;0.92;1');
+      opacityAnimation.setAttribute('repeatCount', 'indefinite');
+      opacityAnimation.setAttribute('calcMode', 'linear');
+
       const animate = document.createElementNS('http://www.w3.org/2000/svg', 'animateMotion');
       animate.setAttribute('dur', '2s');
       animate.setAttribute('repeatCount', 'indefinite');
       animate.setAttribute('path', pathData);
+      dot.appendChild(colorAnimation);
+      dot.appendChild(opacityAnimation);
       dot.appendChild(animate);
       state.svgOverlay.appendChild(dot);
     });

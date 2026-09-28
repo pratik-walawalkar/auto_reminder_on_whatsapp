@@ -783,6 +783,8 @@ button.danger {
 }
 
 #treeCanvas canvas {
+  position: relative;
+  z-index: 1;
   display: block;
   width: 100% !important;
   height: 100% !important;
@@ -1229,8 +1231,8 @@ button.danger {
   left: 0;
   width: 100%;
   height: 100%;
-  pointer-events: none;
-  z-index: 1;
+    pointer-events: none;
+  z-index: 2;
 }
 
 .connection-overlay path.family-link {
@@ -1240,8 +1242,16 @@ button.danger {
 }
 
 .connection-overlay circle.link-dot {
-  fill: #7ee0ff;
-  filter: drop-shadow(0 0 4px #4bcffa) drop-shadow(0 0 2px rgba(75, 207, 250, 0.5));
+  filter: drop-shadow(0 0 2px var(--accent)) drop-shadow(0 0 1px var(--grid-dot));
+}
+
+.connection-overlay text.connection-label {
+  fill: var(--text);
+  font: 600 11px var(--tb-font-primary);
+  paint-order: stroke;
+  stroke: var(--bg-1);
+  stroke-width: 4px;
+  stroke-linejoin: round;
 }
 
 .edge-style-label {

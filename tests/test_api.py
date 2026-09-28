@@ -98,7 +98,7 @@ def test_classic_tree_uses_union_hubs_with_straight_edges_and_manual_layout():
     assert "if (rootMembers[j].has(id)) count += 1" in source
     assert "const nextHasPlacedLink = nextIdx !== undefined" in source
     assert "smooth: {enabled: true, type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.5}" in source
-    assert "scale: Math.max(network.getScale(), 0.82)" in source
+    assert "network.fit({animation: false});" in source
 
 
 
