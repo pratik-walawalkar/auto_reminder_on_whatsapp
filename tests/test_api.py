@@ -48,7 +48,24 @@ def test_shell_exposes_viewport_controls_and_consolidated_search(client):
     assert b'id="classicView"' in response.data
 
 
+def test_theme_switch_rebuilds_canvas_with_isolated_palettes():
+    source = server.app.test_client().get("/static/app.js").data.decode()
+
+    assert "const WORKSPACE_THEME_DARK = Object.freeze" in source
+    assert "const WORKSPACE_THEME_LIGHT = Object.freeze" in source
+    assert "function getCurrentThemeStyle()" in source
+    assert "function executeThemeCanvasRefresh()" in source
+    assert "const themeObserver = new MutationObserver" in source
+    assert "themeObserver.observe(document.documentElement, {attributes: true})" in source
+    assert "teardownNetwork();" in source
+    assert "network.moveTo({position: view, scale, animation: false})" in source
+    assert "activeTheme.nodeBorderMale" in source
+    assert "activeTheme.nodeBorderFemale" in source
+    assert "themeColors.edge" in source
+
+
 def test_shell_documents_same_tier_spouse_layout():
+
     response = server.app.test_client().get("/")
 
     assert response.status_code == 200

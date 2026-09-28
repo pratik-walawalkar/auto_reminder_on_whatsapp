@@ -6,8 +6,6 @@
   <meta name="theme-color" content="#06070f">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Family Vault</title>
-  <link rel="stylesheet" href="/static/app.css?v=20260925-avatar-drawer">
-  <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
   <script>
     (function () {
       var stored = localStorage.getItem('familyVaultTheme');
@@ -15,6 +13,8 @@
       document.documentElement.setAttribute('data-theme', theme);
     })();
   </script>
+  <link rel="stylesheet" href="/static/app.css?v=20260925-toolbar-system">
+  <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
 </head>
 <body>
   <div class="aurora" aria-hidden="true"></div>
@@ -35,8 +35,8 @@
       <header class="topbar">
         <div><p class="eyebrow">PRIVATE FAMILY ARCHIVE</p><h1>Family Vault</h1></div>
         <div class="header-actions">
-          <label class="header-search">Search<input id="searchInput" type="search" placeholder="Find a family member"></label>
-          <button id="themeToggle" class="icon-toggle" type="button" aria-label="Toggle light and dark theme">ðŸŒ™</button>
+          <label class="header-search">Search<input id="searchInput" class="control" type="search" placeholder="Find a family member"></label>
+          <button id="themeToggle" class="icon-toggle" type="button" aria-label="Toggle light and dark theme">🌙</button>
           <div id="userProfileModule" class="profile-module">
             <button id="userAvatarBtn" type="button" aria-label="Open account profile" aria-expanded="false" onclick="toggleProfilePopover()" class="profile-avatar">
               <img id="avatarImageDisplay" src="" alt="" hidden>
@@ -64,49 +64,53 @@
           <button id="logoutButton" hidden></button>
         </div>
       </header>
-      <section class="controls">
-        <label class="timeline-label">View up to <input id="yearSlider" type="range"><strong id="yearLabel"></strong></label>
-        <div class="view-toggle" role="group" aria-label="Tree view mode">
-          <span>View:</span>
-          <button id="organicView" class="view-mode active" type="button" aria-pressed="true">Organic</button>
-          <button id="classicView" class="view-mode" type="button" aria-pressed="false">Classic Tree</button>
+      <section class="controls toolbar" aria-label="Tree controls">
+        <div class="toolbar-group toolbar-search-group">
+          <label class="timeline-label control timeline-control">View up to <input id="yearSlider" type="range"><strong id="yearLabel"></strong></label>
         </div>
-        <div class="relative inline-block text-left" id="exportMenuContainer">
-          <button id="exportDropdownBtn" type="button" aria-expanded="false" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded text-xs font-medium shadow flex items-center space-x-1">
+        <div class="toolbar-group">
+          <div class="view-toggle segmented-control" role="group" aria-label="Tree view mode">
+            <span class="toolbar-label">View</span>
+            <button id="organicView" class="view-mode" type="button" aria-pressed="true">Organic</button>
+            <button id="classicView" class="view-mode" type="button" aria-pressed="false">Classic Tree</button>
+          </div>
+        </div>
+        <div class="toolbar-group toolbar-actions" id="exportMenuContainer">
+          <button id="exportDropdownBtn" type="button" aria-expanded="false" class="control toolbar-button">
             <span>Export Options</span>
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
           </button>
-          <div id="exportDropdownMenu" class="hidden absolute right-0 mt-3 w-64 rounded-xl bg-slate-900/95 border border-slate-800 shadow-2xl backdrop-blur-md p-3.5 space-y-4 z-50">
-            <div class="space-y-1.5" role="menu">
-              <div class="space-y-1.5">
-                <div class="px-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-2">Full Tree Archive</div>
-                <div class="flex flex-col space-y-1">
-                  <button id="existingGedcomBtn" class="w-full text-left block px-3 py-2 text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/80 rounded-lg transition-colors duration-150" role="menuitem">Download Schema (.GED)</button>
-                  <button id="svgExportBtn" onclick="triggerSvgExport()" class="w-full text-left block px-3 py-2 text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/80 rounded-lg transition-colors duration-150" role="menuitem">Download Vector (.SVG)</button>
-                  <button id="pngExportBtn" onclick="triggerPngExport()" class="w-full text-left block px-3 py-2 text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/80 rounded-lg transition-colors duration-150" role="menuitem">Download High-Res Image (.PNG)</button>
-                  <button id="pumlExportBtn" class="w-full text-left block px-3 py-2 text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/80 rounded-lg transition-colors duration-150" role="menuitem">Download Structure Text (.PUML)</button>
+          <div id="exportDropdownMenu" class="hidden" role="menu">
+            <div class="export-menu-content">
+              <div class="export-section">
+                <div class="export-heading">Full Tree Archive</div>
+                <div class="export-options">
+                  <button id="existingGedcomBtn" role="menuitem">Download Schema (.GED)</button>
+                  <button id="svgExportBtn" onclick="triggerSvgExport()" role="menuitem">Download Vector (.SVG)</button>
+                  <button id="pngExportBtn" onclick="triggerPngExport()" role="menuitem">Download High-Res Image (.PNG)</button>
+                  <button id="pumlExportBtn" role="menuitem">Download Structure Text (.PUML)</button>
                 </div>
               </div>
-              <div class="border-t border-slate-800/80 my-2 mx-1"></div>
-              <div class="space-y-1.5">
-                <div class="px-2 text-[10px] font-bold text-indigo-400 uppercase tracking-widest block mb-2">Isolated Lineage Trail</div>
-                <div class="flex flex-col space-y-1">
-                  <button onclick="triggerLineageSnapshotExport('png')" class="w-full text-left block px-3 py-2 text-xs font-medium text-indigo-300 hover:text-white hover:bg-indigo-950/40 rounded-lg transition-colors duration-150" role="menuitem">Snapshot: Clean Image (.PNG)</button>
-                  <button onclick="triggerLineageSnapshotExport('svg')" class="w-full text-left block px-3 py-2 text-xs font-medium text-indigo-300 hover:text-white hover:bg-indigo-950/40 rounded-lg transition-colors duration-150" role="menuitem">Snapshot: Vector Graphic (.SVG)</button>
-                  <button onclick="triggerLineageSnapshotExport('puml')" class="w-full text-left block px-3 py-2 text-xs font-medium text-indigo-300 hover:text-white hover:bg-indigo-950/40 rounded-lg transition-colors duration-150" role="menuitem">Snapshot: Diagram Text (.PUML)</button>
+              <div class="export-divider"></div>
+              <div class="export-section">
+                <div class="export-heading">Isolated Lineage Trail</div>
+                <div class="export-options">
+                  <button onclick="triggerLineageSnapshotExport('png')" role="menuitem">Snapshot: Clean Image (.PNG)</button>
+                  <button onclick="triggerLineageSnapshotExport('svg')" role="menuitem">Snapshot: Vector Graphic (.SVG)</button>
+                  <button onclick="triggerLineageSnapshotExport('puml')" role="menuitem">Snapshot: Diagram Text (.PUML)</button>
                 </div>
               </div>
             </div>
           </div>
         </div>
-        <button id="resetView" class="secondary">Reset view</button>
-        <label class="edge-style-label">Edges
+        <button id="resetView" class="control toolbar-button secondary">Reset view</button>
+        <label class="edge-style-label control">Edges
           <select id="edgeStyleSelect" aria-label="Edge style">
             <option value="classic">Classic</option>
             <option value="moving-dots">Moving dots</option>
           </select>
         </label>
-        <button id="addButton">+ Add family member</button>
+        <button id="addButton" class="control control-primary">+ Add family member</button>
         <section id="status" class="status" hidden></section>
       </section>
       <section id="treeViewport" aria-label="Interactive family knowledge graph">
@@ -140,9 +144,9 @@
       </div>
     </div>
   </div>
-  <aside id="sidePanel" class="side-panel" hidden aria-label="Family member panel"><button class="close-sheet" data-close="sidePanel" aria-label="Close">Ã—</button><div id="sidePanelContent"></div></aside>
-  <aside id="reviewSheet" class="sheet" hidden aria-label="Proposal review"><div class="sheet-panel"><span class="sheet-handle" aria-hidden="true"></span><button class="close-sheet" data-close="reviewSheet" aria-label="Close">Ã—</button><div id="reviewContent"></div></div></aside>
+  <aside id="sidePanel" class="side-panel" hidden aria-label="Family member panel"><button class="close-sheet" data-close="sidePanel" aria-label="Close">×</button><div id="sidePanelContent"></div></aside>
+  <aside id="reviewSheet" class="sheet" hidden aria-label="Proposal review"><div class="sheet-panel"><span class="sheet-handle" aria-hidden="true"></span><button class="close-sheet" data-close="reviewSheet" aria-label="Close">×</button><div id="reviewContent"></div></div></aside>
   <div id="overlayBackdrop" class="side-panel-backdrop" hidden></div>
-  <script src="/static/app.js?v=20260925-avatar-drawer"></script>
+  <script src="/static/app.js?v=20260925-layout-slot-fix-2"></script>
 </body>
 </html>

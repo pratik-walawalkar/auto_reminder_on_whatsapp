@@ -1,7 +1,7 @@
 # Family Vault requirements and use cases
 
 **Status:** Living document  
-**Last updated:** 2026-09-25
+**Last updated:** 2026-09-28
 **Update rule:** Every new feature, behavior change, integration, or security decision must update this file, related tests, and user-facing documentation in the same change set.
 
 ## Scope
@@ -49,6 +49,8 @@ Family Vault is a self-hosted, mobile-first genealogy tool for a private family 
 | FR-27 | Classic Tree places spouses side-by-side on the same generation tier, reserves a complete horizontal slot for each couple (including spouse gap), routes their children from the midpoint of the couple without overlapping sibling cards, and centers parents over all their children (including grafted cross-branch marriages) for visual cohesion. | Implemented | Frontend regression checks, layout geometry tests, and Playwright smoke tests |
 | FR-28 | Classic Tree uses the earlier vis-network hierarchy with vertical spouse linkage; experimental custom curve and moving-dot overlays are not part of the active layout. | Implemented | Frontend syntax and Playwright smoke tests |
 | FR-29 | Holding Shift while hovering a person locks the ancestral highlight until Shift is released, allowing movement to and double-click editing of an ancestor without resetting dimmed branches. | Implemented | Frontend source regression checks and Playwright interaction diagnostics |
+| FR-30 | The authenticated dashboard toolbar uses isolated `--tb-*` design tokens, consistent control geometry, semantic view/action groups, responsive wrapping, persisted light/dark themes, and a warm ivory light palette without mutating legacy canvas variables. | Implemented | Playwright visual and computed-style checks |
+| FR-31 | Switching themes dynamically rebuilds all canvas node, edge, text, arrow, and animated-overlay styles from isolated dark/light matrices while preserving the current viewport position and zoom. | Implemented | Theme-isolation regression test and Playwright toggle cycle |
 
 ## Data and integrity requirements
 

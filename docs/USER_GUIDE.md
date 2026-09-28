@@ -21,9 +21,9 @@ Contact an administrator if you do not have an account or cannot sign in. There 
 - **Reset view:** select **Reset view** to return to the starting position and zoom.
 - **Search:** type a name in the **Search** field in the top header. Matching cards stay vivid, unmatched cards and links fade, and the first match is centered automatically. Clear the field to restore the full tree.
 - **Lock an ancestral path:** hold **Shift** while hovering a person. Their ancestral path stays highlighted while you move to an ancestor card, so you can double-click it to edit without losing the trail. Release **Shift** to restore normal clarity.
-- **View mode:** use **View: Organic | Classic Tree** in the toolbar. Organic is the free-form layout; Classic Tree locks generations into top-down horizontal lanes, keeps spouses side-by-side, and places their children beneath the couple. Double-click a card to open its details.
+- **View mode:** use **View: Organic | Classic Tree** in the toolbar. Organic is the free-form layout; Classic Tree locks generations into top-down horizontal lanes, keeps spouses side-by-side with dedicated space, and places their children beneath the couple without covering neighboring family cards. Double-click a card to open its details.
 - **Time travel:** move **View up to** to show people born on or before a selected year.
-- **Switch theme:** select the sun/moon button in the header to toggle light and dark appearance. Your choice is remembered on this device.
+- **Switch theme:** select the sun/moon button in the header to toggle light and dark appearance. Dark mode uses a high-contrast slate surface; light mode uses a warm ivory, parchment, and espresso palette. The tree redraws its cards, relationship lines, labels, arrows, and animated connections for the selected theme without changing your current position or zoom. Your choice is remembered on this device.
 
 Selecting a person shows their birth/death information, roots, migration history, tags, and notes, followed by an edit form for that person. A locked padlock on a card means that person is marked private â€” non-administrators see only their name and place; sensitive details are hidden until an administrator signs in.
 

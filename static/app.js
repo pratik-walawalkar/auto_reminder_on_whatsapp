@@ -30,10 +30,10 @@ function svgEscape(value) {
   return String(value ?? '').replace(/[&<>"']/g, char => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;'}[char]));
 }
 
-function nodeCardImage(person, genderColor, level) {
+function nodeCardImage(person, genderColor, level, themeColors) {
   const name = svgEscape(displayName(person));
   const birth = svgEscape(person.vital_events?.birth?.date || 'Unknown');
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="196" height="60" viewBox="0 0 196 60"><rect x="1.5" y="1.5" width="193" height="57" rx="12" fill="#0f172a" stroke="${genderColor}" stroke-width="1.6"/><circle cx="26" cy="30" r="13" fill="${genderColor}" fill-opacity=".16" stroke="${genderColor}" stroke-width="1.4"/><path d="M26 22.5a5.2 5.2 0 1 1 0 10.4 5.2 5.2 0 0 1 0-10.4zM15.6 40.4c0-4.4 5-7.4 10.4-7.4s10.4 3 10.4 7.4v1.4H15.6z" fill="${genderColor}"/><text x="48" y="27" fill="#f1f5f9" font-family="Segoe UI,Arial,sans-serif" font-size="12" font-weight="600">${name}</text><text x="48" y="42" fill="#8b93b8" font-family="Segoe UI,Arial,sans-serif" font-size="9.5">Born ${birth}</text></svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="196" height="60" viewBox="0 0 196 60"><rect x="1.5" y="1.5" width="193" height="57" rx="12" fill="${themeColors.nodeBackground}" stroke="${genderColor}" stroke-width="1.6"/><circle cx="26" cy="30" r="13" fill="${genderColor}" fill-opacity=".16" stroke="${genderColor}" stroke-width="1.4"/><path d="M26 22.5a5.2 5.2 0 1 1 0 10.4 5.2 5.2 0 0 1 0-10.4zM15.6 40.4c0-4.4 5-7.4 10.4-7.4s10.4 3 10.4 7.4v1.4H15.6z" fill="${genderColor}"/><text x="48" y="27" fill="${themeColors.nodeText}" font-family="Segoe UI,Arial,sans-serif" font-size="12" font-weight="600">${name}</text><text x="48" y="42" fill="${themeColors.nodeMuted}" font-family="Segoe UI,Arial,sans-serif" font-size="9.5">Born ${birth}</text></svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
@@ -99,6 +99,7 @@ async function loadFamily() {
 let network = null;
 let networkNodes = null;
 let networkEdges = null;
+let themeRefreshPending = false;
 let isShiftPressed = false;
 let lastPointerNodeId = null;
 
@@ -206,6 +207,31 @@ function clearLineageHover() {
     color: edge._lineageColor
   })));
   state.lineageHover = null;
+}
+
+function getCurrentThemeStyle() {
+  const activeTheme = document.documentElement.getAttribute('data-theme');
+  return activeTheme === 'light' ? WORKSPACE_THEME_LIGHT : WORKSPACE_THEME_DARK;
+}
+
+const WORKSPACE_THEME_DARK = Object.freeze({
+  background: '#0f172a', nodeBgMale: '#1e293b', nodeBorderMale: '#38bdf8', nodeBgFemale: '#1e293b', nodeBorderFemale: '#f472b6', edgeColor: '#94a3b8', textColor: '#f8fafc'
+});
+const WORKSPACE_THEME_LIGHT = Object.freeze({
+  background: '#fdfbf7', nodeBgMale: '#eaf4fa', nodeBorderMale: '#2b769e', nodeBgFemale: '#faf0f4', nodeBorderFemale: '#b84d75', edgeColor: '#706357', textColor: '#2c2520'
+});
+
+function executeThemeCanvasRefresh() {
+  if (!state.family || !network || themeRefreshPending) return;
+  themeRefreshPending = true;
+  requestAnimationFrame(() => {
+    themeRefreshPending = false;
+    const view = network.getViewPosition();
+    const scale = network.getScale();
+    teardownNetwork();
+    renderTree();
+    if (network) network.moveTo({position: view, scale, animation: false});
+  });
 }
 
 function teardownNetwork() {
@@ -583,7 +609,7 @@ function renderTree() {
   };
   const nodes = [];
   const edges = [];
-  const labeledEdge = edge => ({...edge, font: {size: 11, color: '#94a3b8', strokeWidth: 3, strokeColor: '#0f172a', align: 'horizontal'}});
+  const labeledEdge = edge => ({...edge, font: {size: 11, color: document.documentElement.dataset.theme === 'light' ? '#706357' : '#94a3b8', strokeWidth: 3, strokeColor: document.documentElement.dataset.theme === 'light' ? '#fdfbf7' : '#0f172a', align: 'horizontal'}});
   const names = ids => ids.map(id => displayName(personById.get(id))).filter(Boolean);
   const relationshipTooltip = personId => {
     const parentIds = parentsOf.get(personId) || [];
@@ -599,24 +625,34 @@ function renderTree() {
     ];
     return lines.map(line => escapeHtml(line)).join('<br>');
   };
+  const activeTheme = getCurrentThemeStyle();
+  const isLightTheme = activeTheme === WORKSPACE_THEME_LIGHT;
+  const themeColors = isLightTheme
+    ? {nodeBackground: activeTheme.background, nodeText: activeTheme.textColor, nodeMuted: activeTheme.edgeColor, edge: activeTheme.edgeColor, edgeHighlight: '#4a3e72', dimEdge: 'rgba(112, 99, 87, 0.12)'}
+    : {nodeBackground: activeTheme.background, nodeText: activeTheme.textColor, nodeMuted: '#8b93b8', edge: '#6366f1', edgeHighlight: '#a5b4fc', dimEdge: 'rgba(99, 102, 241, 0.12)'};
   people.forEach(person => {
-    const genderColor = person.gender === 'M' ? '#38bdf8' : person.gender === 'F' ? '#f472b6' : '#a78bfa';
+    const genderColor = isLightTheme
+      ? person.gender === 'M' ? activeTheme.nodeBorderMale : person.gender === 'F' ? activeTheme.nodeBorderFemale : '#675a8a'
+      : person.gender === 'M' ? activeTheme.nodeBorderMale : person.gender === 'F' ? activeTheme.nodeBorderFemale : '#a78bfa';
+    const personThemeColors = isLightTheme
+      ? {...themeColors, nodeBackground: person.gender === 'M' ? activeTheme.nodeBgMale : person.gender === 'F' ? activeTheme.nodeBgFemale : '#f1ece4'}
+      : {...themeColors, nodeBackground: activeTheme.nodeBgMale};
     const birth = person.vital_events?.birth?.date || 'Unknown';
     nodes.push({
       id: person.id,
       label: '',
       title: relationshipTooltip(person.id),
-      image: nodeCardImage(person, genderColor, levels.get(person.id)),
-      brokenImage: nodeCardImage(person, genderColor, levels.get(person.id)),
+      image: nodeCardImage(person, genderColor, levels.get(person.id), personThemeColors),
+      brokenImage: nodeCardImage(person, genderColor, levels.get(person.id), personThemeColors),
       shape: 'image',
             margin: 12,
       widthConstraint: {minimum: 190, maximum: 250},
       heightConstraint: {minimum: 72},
       borderWidth: 2,
       borderWidthSelected: 3,
-      color: {background: '#111827', border: genderColor, highlight: {background: '#1f2937', border: '#c4b5fd'}, hover: {background: '#1f2937', border: genderColor}},
-      font: {color: '#f8fafc', size: 15, face: 'Inter, system-ui, sans-serif', bold: {color: '#fff', size: 16}},
-      shadow: {enabled: true, color: `${genderColor}66`, size: 18, x: 0, y: 5},
+      color: {background: themeColors.nodeBackground, border: genderColor, highlight: {background: themeColors.nodeBackground, border: themeColors.edgeHighlight}, hover: {background: themeColors.nodeBackground, border: genderColor}},
+      font: {color: themeColors.nodeText, size: 15, face: 'Inter, system-ui, sans-serif', bold: {color: themeColors.nodeText, size: 16}},
+      shadow: {enabled: true, color: isLightTheme ? 'rgba(42, 33, 27, 0.12)' : `${genderColor}66`, size: isLightTheme ? 10 : 18, x: 0, y: 5},
       chosen: {node: (values, id, selected, hovering) => { values.shadow = true; values.shadowColor = genderColor; values.shadowSize = hovering || selected ? 24 : 14; values.borderWidth = selected ? 3 : 2; }},
       level: levels.get(person.id),
       opacity: !query || matchedIds.has(person.id) ? 1 : 0.12,
@@ -640,7 +676,7 @@ function renderTree() {
       const coupleKey = [...pids].sort().join('|');
       if (drawnCouples.has(coupleKey)) return;
       drawnCouples.add(coupleKey);
-      edges.push(labeledEdge({from: pids[0], to: pids[1], edgeKind: 'union', label: 'Spouse', arrows: {to: {enabled: false}}, color: {color: '#d4a373', opacity: 0.85}, width: 1.6, dashes: [4, 4], smooth: {enabled: false}, ...organicEdgePhysics('union', pids)}));
+      edges.push(labeledEdge({from: pids[0], to: pids[1], edgeKind: 'union', label: 'Spouse', arrows: {to: {enabled: false}}, color: {color: themeColors.edge, opacity: 0.72}, width: 1.6, dashes: [4, 4], smooth: {enabled: false}, ...organicEdgePhysics('union', pids)}));
     });
   }
   const parentGroups = new Map();
@@ -665,16 +701,16 @@ function renderTree() {
       if (hasCouple) {
         const hubId = `hub_${group.parentIds.join('_')}`;
         invisibleOrganicHub(hubId, Math.max(...group.parentIds.map(parentId => levels.get(parentId) || 0)) + 0.5);
-        group.parentIds.forEach(parentId => edges.push(labeledEdge({from: parentId, to: hubId, edgeKind: 'marriage-hub', label: '', arrows: {to: {enabled: false}}, color: {color: '#d4a373', opacity: 0.85}, width: 1.6, dashes: [4, 4], smooth: {enabled: false}, length: 45, springConstant: 0.18, physics: true})));
-        group.childIds.forEach(childId => edges.push(labeledEdge({from: hubId, to: childId, edgeKind: 'parent', label: childRelationLabel(group.parentIds, childId), arrows: {to: {enabled: true, scaleFactor: 0.8}}, color: {color: '#6366f1', highlight: '#a5b4fc'}, width: 2, smooth: {enabled: true, type: 'dynamic'}, length: 160, springConstant: 0.04, physics: true})));
+        group.parentIds.forEach(parentId => edges.push(labeledEdge({from: parentId, to: hubId, edgeKind: 'marriage-hub', label: '', arrows: {to: {enabled: false}}, color: {color: themeColors.edge, opacity: 0.72}, width: 1.6, dashes: [4, 4], smooth: {enabled: false}, length: 45, springConstant: 0.18, physics: true})));
+        group.childIds.forEach(childId => edges.push(labeledEdge({from: hubId, to: childId, edgeKind: 'parent', label: childRelationLabel(group.parentIds, childId), arrows: {to: {enabled: true, scaleFactor: 0.8}}, color: {color: themeColors.edge, highlight: themeColors.edgeHighlight}, width: 2, smooth: {enabled: true, type: 'dynamic'}, length: 160, springConstant: 0.04, physics: true})));
       } else {
-        group.childIds.forEach(childId => edges.push(labeledEdge({from: sourceId, to: childId, edgeKind: 'parent', label: childRelationLabel(group.parentIds, childId), arrows: {to: {enabled: true, scaleFactor: 0.8}}, color: {color: '#6366f1', highlight: '#a5b4fc'}, width: 2, smooth: {enabled: true, type: 'dynamic'}, ...organicEdgePhysics('parent', group.parentIds, childId)})));
+        group.childIds.forEach(childId => edges.push(labeledEdge({from: sourceId, to: childId, edgeKind: 'parent', label: childRelationLabel(group.parentIds, childId), arrows: {to: {enabled: true, scaleFactor: 0.8}}, color: {color: themeColors.edge, highlight: themeColors.edgeHighlight}, width: 2, smooth: {enabled: true, type: 'dynamic'}, ...organicEdgePhysics('parent', group.parentIds, childId)})));
       }
       return;
     }
     // Single child: connect directly, no need for a shared trunk to split.
     if (group.childIds.length < 2 && !hasCouple) {
-      group.childIds.forEach(childId => edges.push(labeledEdge({from: sourceId, to: childId, edgeKind: 'parent', label: childRelationLabel(group.parentIds, childId), arrows: {to: {enabled: true, scaleFactor: 0.8}}, color: {color: '#6366f1', highlight: '#a5b4fc'}, width: 2, smooth: classicTree ? {enabled: false} : {enabled: true, type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.5}})));
+      group.childIds.forEach(childId => edges.push(labeledEdge({from: sourceId, to: childId, edgeKind: 'parent', label: childRelationLabel(group.parentIds, childId), arrows: {to: {enabled: true, scaleFactor: 0.8}}, color: {color: themeColors.edge, highlight: themeColors.edgeHighlight}, width: 2, smooth: classicTree ? {enabled: false} : {enabled: true, type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.5}})));
       return;
     }
     // Whether one parent or a couple: a single trunk drops from the parent (or the
@@ -707,16 +743,16 @@ function renderTree() {
     }
     invisibleClassicNode(branchId, branchPosition, Math.max(...group.childIds.map(childId => levels.get(childId) || 0)) - 0.4);
     const trunkFrom = hasCouple ? intersectionId : sourceId;
-    edges.push({from: trunkFrom, to: branchId, edgeKind: 'parent', arrows: {to: {enabled: false}}, label: '', color: {color: '#6366f1', opacity: 0.9}, width: 2, smooth: {enabled: false}});
+    edges.push({from: trunkFrom, to: branchId, edgeKind: 'parent', arrows: {to: {enabled: false}}, label: '', color: {color: themeColors.edge, opacity: 0.9}, width: 2, smooth: {enabled: false}});
     // Every child, including one grafted in elsewhere via marriage and sitting at a
     // different row, still branches off the same shared trunk point â€” this keeps the
     // single-trunk-splits-into-many look consistent no matter where the child lands.
-    group.childIds.forEach(childId => edges.push(labeledEdge({from: branchId, to: childId, edgeKind: 'parent', label: childRelationLabel(group.parentIds, childId), arrows: {to: {enabled: true, scaleFactor: 0.8}}, color: {color: '#6366f1', highlight: '#a5b4fc'}, width: 2, smooth: {enabled: true, type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.45}})));
+    group.childIds.forEach(childId => edges.push(labeledEdge({from: branchId, to: childId, edgeKind: 'parent', label: childRelationLabel(group.parentIds, childId), arrows: {to: {enabled: true, scaleFactor: 0.8}}, color: {color: themeColors.edge, highlight: themeColors.edgeHighlight}, width: 2, smooth: {enabled: true, type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.45}})));
   });
   if (query) {
     edges.forEach(edge => {
       const relevant = matchedIds.has(edge.from) || matchedIds.has(edge.to);
-      edge.color = {color: relevant ? '#6366f1' : 'rgba(99, 102, 241, 0.12)', highlight: relevant ? '#a5b4fc' : 'rgba(99, 102, 241, 0.12)'};
+      edge.color = {color: relevant ? themeColors.edge : themeColors.dimEdge, highlight: relevant ? themeColors.edgeHighlight : themeColors.dimEdge};
       edge.opacity = relevant ? 1 : 0.12;
     });
   }
@@ -745,22 +781,25 @@ function renderTree() {
 
   // Define gradients and styles for animated connections
   const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  const overlayColors = document.documentElement.dataset.theme === 'light'
+    ? {arrow: '#706357', line: '#706357', dot: '#4a3e72', glow: 'rgba(74, 62, 114, .18)'}
+    : {arrow: '#818cf8', line: '#4bcffa', dot: '#7ee0ff', glow: 'rgba(75, 207, 250, .55)'};
   defs.innerHTML = `
     <marker id="familyArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
-      <path d="M0 0 L8 4 L0 8" fill="none" stroke="#818cf8" stroke-width="1.5"></path>
+      <path d="M0 0 L8 4 L0 8" fill="none" stroke="${overlayColors.arrow}" stroke-width="1.5"></path>
     </marker>
     <style>
       .connection-overlay path.family-link.guide {
         fill: none;
-        stroke: #4bcffa;
+        stroke: ${overlayColors.line};
         stroke-width: 2.2;
         opacity: .72;
         stroke-linecap: round;
-        filter: drop-shadow(0 0 3px rgba(75, 207, 250, .55));
+        filter: drop-shadow(0 0 3px ${overlayColors.glow});
       }
       .connection-overlay circle.link-dot {
-        fill: #7ee0ff;
-        filter: drop-shadow(0 0 4px #4bcffa);
+        fill: ${overlayColors.dot};
+        filter: drop-shadow(0 0 4px ${overlayColors.glow});
       }
     </style>
   `;
@@ -793,7 +832,7 @@ function renderTree() {
       // Classic mode: straight angular segments (traditional pedigree-chart look).
       // Organic mode: smooth cubic-Bezier curves.
       smooth: {enabled: true, type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.5},
-      font: {size: 11, color: '#94a3b8', strokeWidth: 3, strokeColor: '#0f172a', align: 'horizontal'},
+      font: {size: 11, color: themeColors.nodeMuted, strokeWidth: 3, strokeColor: isLightTheme ? '#fdfbf7' : '#0f172a', align: 'horizontal'},
       selectionWidth: 2,
       physics: false
     },
@@ -1628,9 +1667,16 @@ if ($('logoutButton')) {
     show('loginView');
   };
 }
-if ($('themeToggle')) {
+  if ($('themeToggle')) {
   $('themeToggle').onclick = toggleTheme;
 }
+
+const themeObserver = new MutationObserver(mutations => {
+  if (mutations.some(mutation => mutation.type === 'attributes' && mutation.attributeName === 'data-theme')) {
+    executeThemeCanvasRefresh();
+  }
+});
+themeObserver.observe(document.documentElement, {attributes: true});
 if ($('exportDropdownBtn')) {
   $('exportDropdownBtn').onclick = event => {
     event.stopPropagation();

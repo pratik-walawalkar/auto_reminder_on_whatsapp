@@ -17,7 +17,7 @@ The application must be bound to a Tailnet IP or localhost, not a public interfa
 | `ingest.py` | Structured CLI validation/import tool; also exposes `export-gedcom`. |
 | `backup.py` | Encrypted SQLite snapshot, restore, verification, and Git synchronization CLI. |
 | `gedcom.py` | Standalone GEDCOM 5.5.1 exporter (no Gramps dependency) used by `ingest.py` and the admin export route. |
-| `templates/`, `static/` | Local-only responsive web client (animated knowledge-graph tree, light/dark theme) and help view. |
+| `templates/`, `static/` | Local-only responsive web client (animated knowledge-graph tree, light/dark theme) and help view. Toolbar styling is isolated in `static/app.css` under `--tb-*` tokens and semantic classes; legacy canvas variables remain unchanged. Classic Tree layout reserves each couple's full spouse footprint and anchors the blood relation at the slot's left edge so sibling cards cannot overlap a spouse. |
 | `docs/USER_GUIDE.md` | Browser-accessible, non-technical user guide. |
 | `REQUIREMENTS_AND_USE_CASES.md` | Living requirements and use-case register; update with every feature. |
 | `tests/` | Isolated data, API, help, backup, recovery, and GEDCOM export tests. |
@@ -127,7 +127,7 @@ The resulting file imports into Gramps, Ancestry, MyHeritage, or any other GEDCO
 
 `static/app.js` positions each person absolutely inside `#treeCanvas` (row = generation, column = alphabetical within generation) and draws curved, gradient-stroked SVG edges between parents and children in `familyLinks`/`renderTree`. Node color rings are driven by CSS custom properties keyed off gender (`.m`/`.f`/`.nb`/`.u` classes map to `--male`/`--female`/`--nb`/`--unknown` tokens). Pan/zoom (`setPanZoom`) skips drag-start when the pointerdown originates on a `.person-node`, so clicks still open the side panel.
 
-Theme: `data-theme="dark"|"light"` on `<html>` selects the token block in `static/app.css`; `applyTheme`/`toggleTheme` in `app.js` persist the choice to `localStorage` (`familyVaultTheme`) and default to the OS preference via `prefers-color-scheme` on first load. An inline blocking script in `templates/shell.html` sets the attribute before first paint to avoid a flash of the wrong theme; `templates/help.html` intentionally has no such script or other `<script>` tag (`test_help_requires_authentication_and_renders_user_guide` asserts the guide page ships script-free).
+Theme: `data-theme="dark"|"light"` on `<html>` selects the token block in `static/app.css`; `applyTheme`/`toggleTheme` in `app.js` persist the choice to `localStorage` (`familyVaultTheme`) and default to the OS preference via `prefers-color-scheme` on first load. An inline blocking script in `templates/shell.html` sets the attribute before first paint to avoid a flash of the wrong theme. The visualization uses immutable `WORKSPACE_THEME_DARK` and `WORKSPACE_THEME_LIGHT` matrices, and a `MutationObserver` rebuilds the network and SVG overlay after theme changes while restoring the prior viewport and zoom. `templates/help.html` intentionally has no such script or other `<script>` tag (`test_help_requires_authentication_and_renders_user_guide` asserts the guide page ships script-free).
 
 ## Frontend layout and view modes
 
