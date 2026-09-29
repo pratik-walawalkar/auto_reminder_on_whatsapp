@@ -186,8 +186,8 @@ function applyLineageHover(nodeId, people, unions, parentsOf) {
     opacity: vividEdges.has(edge.id) ? 1 : 0.12,
     width: vividEdges.has(edge.id) ? Math.max(edge._lineageWidth || 2, 4) : edge._lineageWidth || 2,
     selectionWidth: vividEdges.has(edge.id) ? 6 : edge._lineageSelectionWidth || 2,
-    color: vividEdges.has(edge.id)
-        ? edge._lineageColor
+        color: vividEdges.has(edge.id)
+        ? {...edge._lineageColor, hover: edge._lineageColor.color}
         : {color: 'rgba(148, 163, 184, 0.12)', highlight: 'rgba(148, 163, 184, 0.12)', hover: 'rgba(148, 163, 184, 0.12)'}
   })));
   state.lineageHover = {nodeId, lineage, vividNodes, vividEdges};
