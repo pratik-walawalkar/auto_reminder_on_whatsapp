@@ -869,7 +869,9 @@ function renderTree() {
     const positions = network.getPositions();
     const zoom = network.getScale();
     const toCanvas = pos => network.canvasToDOM(pos);
-        const dotRadius = Math.max(1.5, 3.5 * zoom);
+    // The overlay uses screen coordinates, so scale the dot with the network zoom.
+    const dotRadius = 5.5 * zoom;
+    const endpointGap = 2 * zoom;
     edges.filter(edge => edge.edgeKind === 'parent').forEach((edge, idx) => {
       const fromPos = positions[edge.from];
       const toPos = positions[edge.to];
@@ -894,8 +896,8 @@ function renderTree() {
         (destinationBottomRight.y - destinationCenter.y) / Math.abs(direction.y || Infinity)
       );
       const nodeBoundary = {
-        x: destinationCenter.x - direction.x * Math.max(0, boundaryDistance - dotRadius - 2),
-        y: destinationCenter.y - direction.y * Math.max(0, boundaryDistance - dotRadius - 2)
+        x: destinationCenter.x - direction.x * Math.max(0, boundaryDistance - dotRadius - endpointGap),
+        y: destinationCenter.y - direction.y * Math.max(0, boundaryDistance - dotRadius - endpointGap)
       };
       const pathData = viaScreen
         ? `M${fromScreen.x} ${fromScreen.y} C${viaScreen[0].x} ${viaScreen[0].y},${viaScreen[1].x} ${viaScreen[1].y},${nodeBoundary.x} ${nodeBoundary.y}`
