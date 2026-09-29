@@ -561,7 +561,19 @@ function computeLayout(people, unions, parentsOf, levels) {
   return positions;
 }
 
+function focusSearchMatch(personId) {
+  if (!network || !personId) return;
+  const position = network.getPositions([personId])[personId];
+  if (!position) return;
+  network.moveTo({
+    position,
+    scale: 0.9,
+    animation: {duration: 900, easingFunction: 'easeInOutCubic'}
+  });
+}
+
 function renderTree() {
+
   if (!state.family || !window.vis) return;
   const query = $('searchInput').value.trim().toLowerCase();
   const targetYear = Number($('yearSlider').value);
@@ -765,13 +777,7 @@ function renderTree() {
     // single-trunk-splits-into-many look consistent no matter where the child lands.
     group.childIds.forEach(childId => edges.push(labeledEdge({from: branchId, to: childId, edgeKind: 'parent', label: childRelationLabel(group.parentIds, childId), arrows: {to: {enabled: true, scaleFactor: 0.8}}, color: {color: themeColors.edge, highlight: themeColors.edgeHighlight}, width: 2, smooth: {enabled: true, type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.45}})));
   });
-  if (query) {
-    edges.forEach(edge => {
-      const relevant = matchedIds.has(edge.from) || matchedIds.has(edge.to);
-      edge.color = {color: relevant ? themeColors.edge : themeColors.dimEdge, highlight: relevant ? themeColors.edgeHighlight : themeColors.dimEdge};
-      edge.opacity = relevant ? 1 : 0.12;
-    });
-  }
+  
   
   const container = $('treeCanvas');
   container.innerHTML = '';
@@ -1044,8 +1050,13 @@ function renderTree() {
     if (personId) openPanel(personById.get(personId));
   });
   if (query && matchedIds.size) {
-    network.once('afterDrawing', () => network.focus([...matchedIds][0], {scale: 0.9, animation: {duration: 650, easingFunction: 'easeInOutQuad'}}));
+    network.once('afterDrawing', () => {
+      const matchedId = [...matchedIds][0];
+      applyLineageHover(matchedId, people, unions, parentsOf);
+      focusSearchMatch(matchedId);
+    });
   }
+
   notice(query ? `${matchedIds.size} match${matchedIds.size === 1 ? '' : 'es'} highlighted.` : `${people.length} family member${people.length === 1 ? '' : 's'} shown.`);
 }
 

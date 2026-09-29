@@ -67,10 +67,29 @@ def test_theme_switch_rebuilds_canvas_with_isolated_palettes():
 def test_shell_documents_same_tier_spouse_layout():
 
     response = server.app.test_client().get("/")
-
     assert response.status_code == 200
     source = response.data.decode()
     assert "Classic Tree" in source
+
+
+def test_search_match_uses_smooth_centered_pan_and_zoom():
+    source = server.app.test_client().get("/static/app.js").data.decode()
+
+    assert "function focusSearchMatch(personId)" in source
+    assert "const position = network.getPositions([personId])[personId]" in source
+    assert "network.moveTo({" in source
+    assert "position," in source
+    assert "scale: 0.9" in source
+    assert "duration: 900" in source
+    assert "easingFunction: 'easeInOutCubic'" in source
+    assert "applyLineageHover(matchedId, people, unions, parentsOf);" in source
+    assert "focusSearchMatch(matchedId);" in source
+    assert "state.lineageHover = {nodeId, lineage, vividNodes, vividEdges};" in source
+    assert "edge._lineageColor = edge.color;" in source
+    assert "const relevant = matchedIds.has(edge.from) || matchedIds.has(edge.to);" not in source
+
+
+
 
 
 def test_classic_tree_uses_union_hubs_with_straight_edges_and_manual_layout():
