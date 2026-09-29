@@ -181,14 +181,20 @@ function applyLineageHover(nodeId, people, unions, parentsOf) {
     opacity: vividNodes.has(node.id) ? 1 : 0.12,
     color: vividNodes.has(node.id) ? node._lineageColor : {background: 'rgba(148, 163, 184, 0.12)', border: 'rgba(148, 163, 184, 0.16)'}
   })));
+    const dimmedLabelStroke = document.documentElement.dataset.theme === 'light'
+    ? 'rgba(253, 251, 247, 0.12)'
+    : 'rgba(15, 23, 42, 0.12)';
   networkEdges.update(allEdges.map(edge => ({
     id: edge.id,
     opacity: vividEdges.has(edge.id) ? 1 : 0.12,
     width: vividEdges.has(edge.id) ? Math.max(edge._lineageWidth || 2, 4) : edge._lineageWidth || 2,
     selectionWidth: vividEdges.has(edge.id) ? 6 : edge._lineageSelectionWidth || 2,
-        color: vividEdges.has(edge.id)
-        ? {...edge._lineageColor, hover: edge._lineageColor.color}
-        : {color: 'rgba(148, 163, 184, 0.12)', highlight: 'rgba(148, 163, 184, 0.12)', hover: 'rgba(148, 163, 184, 0.12)'}
+    color: vividEdges.has(edge.id)
+      ? {...edge._lineageColor, hover: edge._lineageColor.color}
+      : {color: 'rgba(148, 163, 184, 0.12)', highlight: 'rgba(148, 163, 184, 0.12)', hover: 'rgba(148, 163, 184, 0.12)'},
+    font: edge._lineageFont
+      ? {...edge._lineageFont, color: vividEdges.has(edge.id) ? edge._lineageFont.color : 'rgba(148, 163, 184, 0.12)', strokeColor: vividEdges.has(edge.id) ? edge._lineageFont.strokeColor : dimmedLabelStroke}
+      : undefined
   })));
   state.lineageHover = {nodeId, lineage, vividNodes, vividEdges};
   updateAnimatedConnectionOpacity();
@@ -216,8 +222,9 @@ function clearLineageHover() {
     id: edge.id,
     opacity: edge._lineageOpacity ?? 1,
     width: edge._lineageWidth || 2,
-    selectionWidth: edge._lineageSelectionWidth || 2,
-        color: edge._lineageColor
+        selectionWidth: edge._lineageSelectionWidth || 2,
+    color: edge._lineageColor,
+    font: edge._lineageFont
   })));
 
   state.lineageHover = null;
@@ -825,7 +832,8 @@ function renderTree() {
   state.edgeAnimationMap = new Map();
   nodes.forEach(node => { node._lineageColor = node.color; });
   edges.forEach(edge => {
-    edge._lineageColor = edge.color;
+        edge._lineageColor = edge.color;
+    edge._lineageFont = edge.font;
     edge._lineageOpacity = edge.opacity ?? 1;
     edge._lineageWidth = edge.width || 2;
     edge._lineageSelectionWidth = edge.selectionWidth || 2;
