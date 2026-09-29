@@ -1629,29 +1629,61 @@ function closePopoverOnOutsideClick(event) {
   if (moduleContainer && !moduleContainer.contains(event.target)) closePopoverCardMenu();
 }
 
+function passwordRequirementState(password, confirmation) {
+  return {
+    length: password.length >= 12,
+    uppercase: /[A-Z]/.test(password),
+    lowercase: /[a-z]/.test(password),
+    number: /\d/.test(password),
+    special: /[^A-Za-z0-9]/.test(password),
+    match: password.length > 0 && password === confirmation,
+  };
+}
+
+function updatePasswordRequirements() {
+  const password = document.getElementById('newPasswordInput')?.value || '';
+  const confirmation = document.getElementById('confirmPasswordInput')?.value || '';
+  const requirements = passwordRequirementState(password, confirmation);
+  Object.entries(requirements).forEach(([name, met]) => {
+    const item = document.querySelector(`[data-password-requirement="${name}"]`);
+    if (!item) return;
+    item.classList.toggle('met', met);
+    item.querySelector('span').textContent = met ? '✓' : '○';
+  });
+  return Object.values(requirements).every(Boolean);
+}
+
 function openUserProfileModal() {
   closePopoverCardMenu();
   document.getElementById('userProfileModal')?.removeAttribute('hidden');
+  updatePasswordRequirements();
 }
 
 function closeUserProfileModal() {
   const modal = document.getElementById('userProfileModal');
   if (modal) modal.hidden = true;
+  const currentPassword = document.getElementById('currentPasswordInput');
   const newPassword = document.getElementById('newPasswordInput');
   const confirmPassword = document.getElementById('confirmPasswordInput');
+  if (currentPassword) currentPassword.value = '';
   if (newPassword) newPassword.value = '';
   if (confirmPassword) confirmPassword.value = '';
+  updatePasswordRequirements();
 }
 
 async function saveProfileSecurityChanges() {
+  const currentPassword = document.getElementById('currentPasswordInput')?.value || '';
   const newPassword = document.getElementById('newPasswordInput')?.value || '';
   const confirmPassword = document.getElementById('confirmPasswordInput')?.value || '';
-  if (newPassword || confirmPassword) {
-    if (newPassword.length < 12) return notice('Password must contain at least 12 characters.');
-    if (newPassword !== confirmPassword) return notice('Passwords do not match.');
-    const username = encodeURIComponent(state.user?.username || '');
-    const response = await api(`/api/admin/users/${username}`, {method: 'PATCH', body: JSON.stringify({password: newPassword})});
-    if (response) notice('Profile security changes saved.');
+  if (newPassword || confirmPassword || currentPassword) {
+    if (!currentPassword) return notice('Enter your current password.');
+    if (!updatePasswordRequirements()) return notice('Meet all password requirements before saving.');
+    try {
+      await api('/api/profile/password', {method: 'PATCH', body: JSON.stringify({current_password: currentPassword, password: newPassword})});
+      notice('Profile security changes saved.');
+    } catch (error) {
+      return notice(error.message);
+    }
   }
   closeUserProfileModal();
 }
@@ -1809,6 +1841,8 @@ if ($('resetView')) {
   };
 }
 if ($('addButton')) $('addButton').onclick = () => openPanel();
+if ($('newPasswordInput')) $('newPasswordInput').oninput = updatePasswordRequirements;
+if ($('confirmPasswordInput')) $('confirmPasswordInput').oninput = updatePasswordRequirements;
 document.querySelectorAll('[data-close]').forEach(button => (button.onclick = () => hide(button.dataset.close)));
 const backdrop = $('overlayBackdrop');
 if (backdrop) {

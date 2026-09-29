@@ -134,10 +134,21 @@
         <label for="avatarFileInput" class="upload-button">Upload New Image</label>
         <input type="file" id="avatarFileInput" accept="image/*" onchange="handleAvatarUpload(event)" hidden>
       </div>
-      <label class="profile-field">Reset Account Password
-        <input type="password" id="newPasswordInput" placeholder="Enter new account password...">
-        <input type="password" id="confirmPasswordInput" placeholder="Confirm new password...">
+      <label class="profile-field">Current Password
+        <input type="password" id="currentPasswordInput" placeholder="Enter current password..." autocomplete="current-password">
       </label>
+      <label class="profile-field">Reset Account Password
+        <input type="password" id="newPasswordInput" placeholder="Enter new account password..." autocomplete="new-password">
+        <input type="password" id="confirmPasswordInput" placeholder="Confirm new password..." autocomplete="new-password">
+      </label>
+      <ul id="passwordRequirements" class="password-requirements" aria-label="Password requirements">
+        <li data-password-requirement="length"><span aria-hidden="true">○</span> At least 12 characters</li>
+        <li data-password-requirement="uppercase"><span aria-hidden="true">○</span> One uppercase letter</li>
+        <li data-password-requirement="lowercase"><span aria-hidden="true">○</span> One lowercase letter</li>
+        <li data-password-requirement="number"><span aria-hidden="true">○</span> One number</li>
+        <li data-password-requirement="special"><span aria-hidden="true">○</span> One special character</li>
+        <li data-password-requirement="match"><span aria-hidden="true">○</span> Passwords match</li>
+      </ul>
       <div class="profile-modal-actions">
         <button type="button" class="secondary" onclick="closeUserProfileModal()">Cancel</button>
         <button type="button" onclick="saveProfileSecurityChanges()">Save Profile</button>

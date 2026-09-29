@@ -90,6 +90,8 @@ All routes require `@admin_required` and `@csrf_required`. Safeguards enforced s
 
 The frontend's **Manage users** panel (`static/app.js:openUsers`) is the only place these endpoints are called from; there is still no self-registration route.
 
+Signed-in users change their own password through `PATCH /api/profile/password` with `current_password` and `password` fields. The endpoint requires authentication and CSRF validation, verifies the current hash before changing it, records `password_changed` in the audit log, and requires at least 12 characters plus uppercase, lowercase, number, and special character. The profile modal exposes the same policy through realtime indicators in `updatePasswordRequirements()`; administrator resets remain separate and do not require the old password.
+
 ## Backup and recovery
 
 `backup.py` creates AES-256-GCM encrypted snapshots using an scrypt-derived key. The passphrase comes only from `FAMILY_VAULT_BACKUP_PASSPHRASE` or explicit CLI input. Git tracks encrypted snapshots, `family.yaml`, and a backup manifest; it never tracks `family_vault.db`.
@@ -133,7 +135,7 @@ Theme: `data-theme="dark"|"light"` on `<html>` selects the token block in `stati
 
 The authenticated shell is a fixed `100vh` flex column: `#vaultView` owns the header, controls, and flexing `#treeViewport`, while `html`/`body`/`#app` suppress page scrolling. Search lives in `.header-search`; `renderTree()` keeps eligible people in the dataset, sets unmatched node/edge opacity to `0.12`, and focuses the first match with `network.focus()`. Clearing the query restores opacity and the normal fit behavior.
 
-The header profile module uses `#userProfileModule` and `#profilePopoverCard`. `initializeAvatarInitials()` derives initials from the authenticated `state.user.display_name`, falling back to `state.user.username`; the same targets are updated in the popover and profile modal. `applySavedAvatarData()` synchronizes a browser-local avatar image across all three views. Account actions, including **Manage Approvals**, are routed from the popover instead of occupying header space. The password form calls the existing administrator user-update endpoint and retains its minimum-length validation.
+The header profile module uses `#userProfileModule` and `#profilePopoverCard`. `initializeAvatarInitials()` derives initials from the authenticated `state.user.display_name`, falling back to `state.user.username`; the same targets are updated in the popover and profile modal. `applySavedAvatarData()` synchronizes a browser-local avatar image across all three views. Account actions, including **Manage Approvals**, are routed from the popover instead of occupying header space. The password form calls the self-service password endpoint, requires the current password, and updates the six password-policy indicators in realtime.
 
 `state.viewMode` persists as `familyVaultView` (`organic` or `classic`). Organic uses repulsion physics and permits node dragging. Classic uses the earlier vis-network hierarchical layout with physics disabled, allowing spouse relationships to retain their earlier vertical linkage behavior. Custom SVG curve and moving-dot experiments are disabled. Holding Shift during an ancestral hover locks the lineage opacity state across `hoverNode`, `blurNode`, and `mousemove` transitions; releasing Shift explicitly resets it.
 

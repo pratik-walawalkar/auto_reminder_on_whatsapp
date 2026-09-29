@@ -1,7 +1,7 @@
 # Family Vault requirements and use cases
 
 **Status:** Living document  
-**Last updated:** 2026-09-28
+**Last updated:** 2026-09-29
 **Update rule:** Every new feature, behavior change, integration, or security decision must update this file, related tests, and user-facing documentation in the same change set.
 
 ## Scope
@@ -39,18 +39,19 @@ Family Vault is a self-hosted, mobile-first genealogy tool for a private family 
 | FR-17 | Members may propose deleting a person from the right-side panel; deletion requires administrator approval like any other change. | Implemented | Delete-proposal API tests |
 | FR-18 | Deleting a person detaches them from every union; a union left with no partners is removed, but unions with a remaining partner and their other children are preserved. | Implemented | `remove_person` unit tests, delete-proposal API test |
 | FR-19 | Administrators can list, create, change the role of, reset the password of, and delete family accounts from the web UI, without shell access. | Implemented | Admin user-management API tests |
-| FR-20 | The system always keeps at least one administrator account: demoting or deleting the last admin is rejected. | Implemented | Admin user-management API tests |
-| FR-21 | An administrator cannot delete their own account (self-lockout protection). | Implemented | Admin user-management API test |
-| FR-22 | A person can be marked private; non-admin viewers see only name and place, with birth date shown as "private" and cultural/migration/notes fields hidden, while administrators always see full detail. | Implemented | `public_person` API test |
-| FR-23 | A person may carry up to 12 short free-text tags (deduplicated case-insensitively) shown as chips on the tree node and in the detail panel. | Implemented | Tag validation unit tests, proposal API test |
-| FR-24 | An administrator can export the full family ledger as a standard GEDCOM 5.5.1 file for use in Gramps, Ancestry, MyHeritage, or other genealogy tools. | Implemented | GEDCOM builder unit tests, export-route API test |
-| FR-25 | The interface offers a light/dark theme toggle that persists across sessions and defaults to the visitor's OS preference. | Implemented | Frontend syntax and HTTP smoke tests |
-| FR-26 | The authenticated dashboard fits the viewport without page scrolling, keeps search in the master header, highlights matching nodes while dimming unmatched nodes and edges, and supports persisted Organic and top-down Classic Tree views. | Implemented | Frontend syntax and Playwright smoke tests |
-| FR-27 | Classic Tree places spouses side-by-side on the same generation tier, reserves a complete horizontal slot for each couple (including spouse gap), routes their children from the midpoint of the couple without overlapping sibling cards, and centers parents over all their children (including grafted cross-branch marriages) for visual cohesion. | Implemented | Frontend regression checks, layout geometry tests, and Playwright smoke tests |
-| FR-28 | Classic Tree uses the earlier vis-network hierarchy with vertical spouse linkage; experimental custom curve and moving-dot overlays are not part of the active layout. | Implemented | Frontend syntax and Playwright smoke tests |
-| FR-29 | Holding Shift while hovering a person locks the ancestral highlight until Shift is released, allowing movement to and double-click editing of an ancestor without resetting dimmed branches. | Implemented | Frontend source regression checks and Playwright interaction diagnostics |
-| FR-30 | The authenticated dashboard toolbar uses isolated `--tb-*` design tokens, consistent control geometry, semantic view/action groups, responsive wrapping, persisted light/dark themes, and a warm ivory light palette without mutating legacy canvas variables. | Implemented | Playwright visual and computed-style checks |
-| FR-31 | Switching themes dynamically rebuilds all canvas node, edge, text, arrow, and animated-overlay styles from isolated dark/light matrices while preserving the current viewport position and zoom. | Implemented | Theme-isolation regression test and Playwright toggle cycle |
+| FR-20 | Signed-in users can change their own password after entering the current password and meeting the password policy; the UI reports requirements in realtime. | Implemented | Self-service password API tests and frontend source checks |
+| FR-21 | The system always keeps at least one administrator account: demoting or deleting the last admin is rejected. | Implemented | Admin user-management API tests |
+| FR-22 | An administrator cannot delete their own account (self-lockout protection). | Implemented | Admin user-management API test |
+| FR-23 | A person can be marked private; non-admin viewers see only name and place, with birth date shown as "private" and cultural/migration/notes fields hidden, while administrators always see full detail. | Implemented | `public_person` API test |
+| FR-24 | A person may carry up to 12 short free-text tags (deduplicated case-insensitively) shown as chips on the tree node and in the detail panel. | Implemented | Tag validation unit tests, proposal API test |
+| FR-25 | An administrator can export the full family ledger as a standard GEDCOM 5.5.1 file for use in Gramps, Ancestry, MyHeritage, or other genealogy tools. | Implemented | GEDCOM builder unit tests, export-route API test |
+| FR-26 | The interface offers a light/dark theme toggle that persists across sessions and defaults to the visitor's OS preference. | Implemented | Frontend syntax and HTTP smoke tests |
+| FR-27 | The authenticated dashboard fits the viewport without page scrolling, keeps search in the master header, highlights matching nodes while dimming unmatched nodes and edges, and supports persisted Organic and top-down Classic Tree views. | Implemented | Frontend syntax and Playwright smoke tests |
+| FR-28 | Classic Tree places spouses side-by-side on the same generation tier, reserves a complete horizontal slot for each couple (including spouse gap), routes their children from the midpoint of the couple without overlapping sibling cards, and centers parents over all their children (including grafted cross-branch marriages) for visual cohesion. | Implemented | Frontend regression checks, layout geometry tests, and Playwright smoke tests |
+| FR-29 | Classic Tree uses the earlier vis-network hierarchy with vertical spouse linkage; experimental custom curve and moving-dot overlays are not part of the active layout. | Implemented | Frontend syntax and Playwright smoke tests |
+| FR-30 | Holding Shift while hovering a person locks the ancestral highlight until Shift is released, allowing movement to and double-click editing of an ancestor without resetting dimmed branches. | Implemented | Frontend source regression checks and Playwright interaction diagnostics |
+| FR-31 | The authenticated dashboard toolbar uses isolated `--tb-*` design tokens, consistent control geometry, semantic view/action groups, responsive wrapping, persisted light/dark themes, and a warm ivory light palette without mutating legacy canvas variables. | Implemented | Playwright visual and computed-style checks |
+| FR-32 | Switching themes dynamically rebuilds all canvas node, edge, text, arrow, and animated-overlay styles from isolated dark/light matrices while preserving the current viewport position and zoom. | Implemented | Theme-isolation regression test and Playwright toggle cycle |
 
 ## Data and integrity requirements
 
@@ -70,6 +71,7 @@ Family Vault is a self-hosted, mobile-first genealogy tool for a private family 
 | SR-01 | App access is limited to the Tailnet or localhost; no public deployment. | Operational requirement |
 | SR-02 | Passwords are stored as hashes, never plaintext. | Implemented |
 | SR-03 | State-changing HTTP endpoints require a signed-in session and CSRF token. | Implemented |
+| SR-09 | Self-service password changes require the current password and a new password with at least 12 characters, uppercase, lowercase, number, and special character. | Implemented |
 | SR-04 | Session cookies must be HTTP-only and SameSite Lax. | Implemented |
 | SR-05 | Snapshot encryption uses AES-256-GCM with scrypt key derivation and a unique salt. | Implemented |
 | SR-06 | Encryption passphrases and session secrets must remain outside Git and logs. | Implemented |
@@ -127,6 +129,13 @@ Family Vault is a self-hosted, mobile-first genealogy tool for a private family 
 **Flow:** Administrator opens **Manage users**, creates a new account with a temporary password and role, or changes an existing account's role, resets its password, or deletes it.  
 **Outcome:** The family member can sign in with their own credentials; at least one administrator account always remains; an administrator cannot delete their own account or demote themselves if they are the last admin.
 
+### UC-07: Change own password
+
+**Actor:** Authenticated family member
+**Preconditions:** User is signed in and knows their current password.
+**Flow:** User opens **Manage Profile & Security**, enters the current password and a new password. The modal updates password-policy indicators in realtime; submission requires every indicator to pass.
+**Outcome:** The server verifies the current password, hashes the new password, records an audit event, and updates the account.
+
 ## Deferred use cases
 
 - Photo attachment and lookup through Immich.
@@ -144,5 +153,6 @@ Family Vault is a self-hosted, mobile-first genealogy tool for a private family 
 | 2026-09-21 | Added authenticated user help, developer/user documentation, encrypted SQLite snapshots, Git synchronization, and recovery validation. |
 | 2026-09-21 | Replaced separate view/add/edit sheets with one right-side panel supporting live node switching; added automatic name-based person-ID generation with year/suffix fallback; made birth date optional; edits now preserve fields not shown in the form. |
 | 2026-09-21 | Fixed a pan/zoom regression that swallowed node clicks so the right-side panel never opened. Added member-submittable, admin-approved delete proposals with referential cleanup (`remove_person`). Added an Immich-style admin user-management API and "Manage users" panel: list, create, change role, reset password, and delete accounts, with safeguards preventing the last administrator from being demoted, deleted, or self-deleted. |
+| 2026-09-29 | Added self-service password changes with current-password verification, realtime password-policy indicators, matching frontend/backend validation, and API tests. |
 | 2026-09-22 | Consolidated search into the header, added match focus/dimming, fixed viewport fitting and action-row alignment, and introduced persisted Organic/Classic Tree modes with top-down generation lanes. |
 | 2026-09-21 | Added a per-person `is_private` flag (redacts sensitive fields from non-admin viewers) and up to 12 free-text `tags` per person, exposed in the add/edit form and as chips on tree nodes. Added standalone GEDCOM 5.5.1 export (`gedcom.py`, `ingest.py export-gedcom`, admin-only `GET /api/export/gedcom`) so the ledger can be imported into Gramps or other genealogy tools without depending on the Gramps codebase. Redesigned the frontend as an animated, theme-aware "knowledge graph": gradient-stroked curved edges, glassmorphic panels, avatar-initial nodes with color-coded rings and tag chips, and a persistent light/dark theme toggle. |

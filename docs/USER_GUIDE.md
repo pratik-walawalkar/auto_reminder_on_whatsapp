@@ -60,13 +60,16 @@ This submits a deletion request; the person is not removed until an administrato
 
 Select the circular profile avatar in the header to open the account popover. The displayed initials, name, and username are taken from the signed-in account; they are not fixed to a particular person.
 
-- **Manage Profile & Security** opens the profile modal, where you can upload a picture or change your password.
+- **Manage Profile & Security** opens the profile modal, where you can upload a picture or change your password. Password changes require your current password.
 - **Manage Approvals** opens pending family-history proposals for administrator review.
 - **Manage Users** opens account administration for administrators.
 - **Help & Guide** opens this guide.
 - **Sign Out** ends the current session.
 
+To change your password, enter your current password, enter and confirm a new password, then meet every live requirement shown in green: at least 12 characters, one uppercase letter, one lowercase letter, one number, and one special character. Select **Save Profile** only after all requirements pass. If you do not know the current password, contact an administrator for an account reset.
+
 Uploaded profile pictures are stored locally in this browser and are not written to the family ledger.
+
 
 ### Reviewing proposals
 

@@ -440,6 +440,42 @@ def test_delete_proposal_rejects_unknown_person(client, member_token):
     assert response.get_json()["error"] == "Invalid proposal target."
 
 
+def test_member_can_change_own_password_and_log_in_again(client, member_token):
+    response = client.patch(
+        "/api/profile/password",
+        json={"current_password": "member-password-123", "password": "Member-new-password1!"},
+        headers=csrf(member_token),
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {"message": "Password updated successfully."}
+    assert login(client, "memberuser", "Member-new-password1!")
+
+
+def test_password_change_rejects_wrong_current_password(client, member_token):
+    response = client.patch(
+        "/api/profile/password",
+        json={"current_password": "wrong-password", "password": "Member-new-password1!"},
+        headers=csrf(member_token),
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Current password is incorrect."
+
+
+def test_password_change_requires_csrf_and_valid_length(client, member_token):
+    missing_csrf = client.patch("/api/profile/password", json={"password": "member-new-password"})
+    too_short = client.patch(
+        "/api/profile/password",
+        json={"current_password": "member-password-123", "password": "short"},
+        headers=csrf(member_token),
+    )
+
+    assert missing_csrf.status_code == 403
+    assert too_short.status_code == 400
+    assert too_short.get_json()["error"] == "Password must be at least 12 characters and include uppercase, lowercase, number, and special character."
+
+
 def test_admin_can_list_and_create_users(client, admin_token):
     listing = client.get("/api/admin/users", headers=csrf(admin_token))
     assert listing.status_code == 200

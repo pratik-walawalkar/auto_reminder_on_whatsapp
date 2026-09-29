@@ -482,6 +482,35 @@ def admin_count(connection: sqlite3.Connection, exclude_username: str | None = N
     return connection.execute(query, params).fetchone()[0]
 
 
+@app.patch("/api/profile/password")
+@login_required
+@csrf_required
+def change_own_password():
+    payload = request.get_json(silent=True) or {}
+    current_password = str(payload.get("current_password", ""))
+    password = str(payload.get("password", ""))
+    with db() as connection:
+        existing = connection.execute("SELECT password_hash FROM users WHERE username = ?", (actor(),)).fetchone()
+    if existing is None or not check_password_hash(existing["password_hash"], current_password):
+        return jsonify(error="Current password is incorrect."), 400
+    if (
+        len(password) < 12
+        or not re.search(r"[A-Z]", password)
+        or not re.search(r"[a-z]", password)
+        or not re.search(r"\d", password)
+        or not re.search(r"[^A-Za-z0-9]", password)
+    ):
+        return jsonify(error="Password must be at least 12 characters and include uppercase, lowercase, number, and special character."), 400
+    username = actor()
+    with db() as connection:
+        connection.execute(
+            "UPDATE users SET password_hash = ? WHERE username = ?",
+            (generate_password_hash(password), username),
+        )
+    audit("password_changed", {"username": username})
+    return jsonify(message="Password updated successfully.")
+
+
 @app.get("/api/admin/users")
 @admin_required
 def list_users():

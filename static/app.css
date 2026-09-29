@@ -261,6 +261,11 @@ body {
 .upload-button { padding: 7px 12px; border-radius: 8px; color: white; background: var(--accent); font-size: 0.72rem; cursor: pointer; }
 .profile-field { display: grid; gap: 7px; color: var(--muted); font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
 .profile-field input { width: 100%; padding: 9px 10px; color: var(--text); background: var(--bg-0); border: 1px solid var(--line); border-radius: 8px; font-size: 0.75rem; text-transform: none; letter-spacing: normal; }
+.password-requirements { display: grid; gap: 5px; margin: 10px 0 0; padding: 0; color: var(--muted); font-size: 0.7rem; list-style: none; }
+.password-requirements li { display: flex; align-items: center; gap: 6px; transition: color 160ms ease; }
+.password-requirements li span { width: 12px; color: var(--muted); font-size: 0.9rem; }
+.password-requirements li.met { color: var(--success, #35d07f); }
+.password-requirements li.met span { color: var(--success, #35d07f); }
 .profile-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
 
 
