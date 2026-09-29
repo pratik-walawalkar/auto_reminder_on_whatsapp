@@ -191,7 +191,20 @@ function applyLineageHover(nodeId, people, unions, parentsOf) {
         : {color: 'rgba(148, 163, 184, 0.12)', highlight: 'rgba(148, 163, 184, 0.12)', hover: 'rgba(148, 163, 184, 0.12)'}
   })));
   state.lineageHover = {nodeId, lineage, vividNodes, vividEdges};
+  updateAnimatedConnectionOpacity();
   lastPointerNodeId = nodeId;
+}
+
+function updateAnimatedConnectionOpacity() {
+  document.querySelectorAll('.connection-overlay circle.link-dot').forEach(dot => {
+    const edgeId = dot.dataset.edgeId;
+    const baseOpacity = state.lineageHover
+      ? state.lineageHover.vividEdges.has(edgeId) ? 1 : 0.12
+      : 1;
+    const opacityAnimation = dot.querySelector('animate[attributeName="opacity"]');
+    if (opacityAnimation) opacityAnimation.setAttribute('values', `${baseOpacity};${baseOpacity};0`);
+    dot.style.opacity = String(baseOpacity);
+  });
 }
 
 function clearLineageHover() {
@@ -208,6 +221,7 @@ function clearLineageHover() {
   })));
 
   state.lineageHover = null;
+  updateAnimatedConnectionOpacity();
 }
 
 function getCurrentThemeStyle() {
@@ -865,10 +879,41 @@ function renderTree() {
     const animateConnections = () => {
     if (!state.svgOverlay || state.edgeStyle !== 'moving-dots') return;
     state.svgOverlay.querySelectorAll('path.family-link, circle.link-dot, text.connection-label, animateMotion').forEach(el => el.remove());
+    state.connectionMask?.remove();
+    state.connectionAnimationLayer?.remove();
     
     const positions = network.getPositions();
     const zoom = network.getScale();
     const toCanvas = pos => network.canvasToDOM(pos);
+    // Keep the overlay above the canvas for animation, but exclude every node card from it.
+    const maskId = `connection-mask-${Date.now()}`;
+    const mask = document.createElementNS('http://www.w3.org/2000/svg', 'mask');
+    mask.setAttribute('id', maskId);
+    mask.setAttribute('maskUnits', 'userSpaceOnUse');
+    const maskBackground = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    maskBackground.setAttribute('width', '100%');
+    maskBackground.setAttribute('height', '100%');
+    maskBackground.setAttribute('fill', 'white');
+    mask.appendChild(maskBackground);
+    Object.keys(positions).forEach(nodeId => {
+      const bounds = network.getBoundingBox(nodeId);
+      if (!bounds) return;
+      const topLeft = toCanvas({x: bounds.left, y: bounds.top});
+      const bottomRight = toCanvas({x: bounds.right, y: bounds.bottom});
+      const shield = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      shield.setAttribute('x', String(topLeft.x));
+      shield.setAttribute('y', String(topLeft.y));
+      shield.setAttribute('width', String(Math.max(0, bottomRight.x - topLeft.x)));
+      shield.setAttribute('height', String(Math.max(0, bottomRight.y - topLeft.y)));
+      shield.setAttribute('fill', 'black');
+      mask.appendChild(shield);
+    });
+    defs.appendChild(mask);
+    const animationLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    animationLayer.setAttribute('mask', `url(#${maskId})`);
+    state.connectionMask = mask;
+    state.connectionAnimationLayer = animationLayer;
+    state.svgOverlay.appendChild(animationLayer);
     // The overlay uses screen coordinates, so scale the dot with the network zoom.
     const dotRadius = 5.5 * zoom;
     const endpointGap = 2 * zoom;
@@ -924,7 +969,10 @@ function renderTree() {
       const opacityAnimation = document.createElementNS('http://www.w3.org/2000/svg', 'animate');
       opacityAnimation.setAttribute('attributeName', 'opacity');
       opacityAnimation.setAttribute('dur', '2s');
-      opacityAnimation.setAttribute('values', '1;1;0');
+      const initialDotOpacity = state.lineageHover
+        ? state.lineageHover.vividEdges.has(edge.id) ? 1 : 0.12
+        : 1;
+      opacityAnimation.setAttribute('values', `${initialDotOpacity};${initialDotOpacity};0`);
       opacityAnimation.setAttribute('keyTimes', '0;0.92;1');
       opacityAnimation.setAttribute('repeatCount', 'indefinite');
       opacityAnimation.setAttribute('calcMode', 'linear');
@@ -936,7 +984,7 @@ function renderTree() {
       dot.appendChild(colorAnimation);
       dot.appendChild(opacityAnimation);
       dot.appendChild(animate);
-      state.svgOverlay.appendChild(dot);
+      animationLayer.appendChild(dot);
     });
   };
 
