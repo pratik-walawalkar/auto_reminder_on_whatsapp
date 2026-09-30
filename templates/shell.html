@@ -4,7 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#06070f">
-  <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <title>Family Vault</title>
   <script>
     (function () {
@@ -32,17 +33,20 @@
     </section>
 
         <section id="vaultView" hidden>
-      <header class="topbar">
-        <div><p class="eyebrow">PRIVATE FAMILY ARCHIVE</p><h1>Family Vault</h1></div>
+            <header class="topbar">
+        <div class="brand-block"><p class="eyebrow">PRIVATE FAMILY ARCHIVE</p><h1>Family Vault</h1></div>
         <div class="header-actions">
-          <label class="header-search">Search<input id="searchInput" class="control" type="search" placeholder="Find a family member"></label>
-          <button id="themeToggle" class="icon-toggle" type="button" aria-label="Toggle light and dark theme">&#x1F319;</button>
+          <label class="header-search"><span>Search</span><input id="searchInput" class="control" type="search" placeholder="Find a family member"></label>
+          <button id="themeToggle" class="theme-switch" type="button" role="switch" aria-checked="false" aria-label="Toggle light and dark theme">
+            <span class="theme-switch-scene" aria-hidden="true"><span class="theme-switch-stars"></span><span class="theme-switch-sun">☀</span><span class="theme-switch-moon">☾</span></span>
+            <span class="theme-switch-thumb" aria-hidden="true"><span class="theme-switch-icon">☾</span></span>
+          </button>
           <div id="userProfileModule" class="profile-module">
             <button id="userAvatarBtn" type="button" aria-label="Open account profile" aria-expanded="false" onclick="toggleProfilePopover()" class="profile-avatar">
               <img id="avatarImageDisplay" src="" alt="" hidden>
               <span id="avatarInitialsDisplay" aria-hidden="true"></span>
             </button>
-            <div id="profilePopoverCard" hidden class="profile-popover" role="menu">
+            <div id="profilePopoverCard" hidden class="profile-popover" role="menu" aria-label="Account menu">
               <div class="popover-identity">
                 <div class="popover-avatar">
                   <img id="popoverAvatarImage" src="" alt="" hidden>
@@ -76,8 +80,8 @@
           </div>
         </div>
         <div class="toolbar-group toolbar-actions" id="exportMenuContainer">
-          <button id="exportDropdownBtn" type="button" aria-expanded="false" class="control toolbar-button">
-            <span>Export Options</span>
+          <button id="exportDropdownBtn" type="button" aria-expanded="false" aria-label="Export Options" class="control toolbar-button">
+            <span class="toolbar-icon" aria-hidden="true">⇩</span><span>Export</span>
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
           </button>
           <div id="exportDropdownMenu" class="hidden" role="menu">
@@ -103,14 +107,14 @@
             </div>
           </div>
         </div>
-        <button id="resetView" class="control toolbar-button secondary">Reset view</button>
+        <button id="resetView" class="control toolbar-button secondary" aria-label="Reset view"><span class="toolbar-icon" aria-hidden="true">↺</span><span>Reset</span></button>
         <label class="edge-style-label control">Edges
           <select id="edgeStyleSelect" aria-label="Edge style">
             <option value="classic">Classic</option>
             <option value="moving-dots">Moving dots</option>
           </select>
         </label>
-        <button id="addButton" class="control control-primary">+ Add family member</button>
+        <button id="addButton" class="control control-primary" aria-label="Add family member"><span class="toolbar-icon" aria-hidden="true">＋</span><span>Add member</span></button>
         <section id="status" class="status" hidden></section>
       </section>
       <section id="treeViewport" aria-label="Interactive family knowledge graph">
