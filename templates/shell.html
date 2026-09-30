@@ -14,7 +14,7 @@
       document.documentElement.setAttribute('data-theme', theme);
     })();
   </script>
-  <link rel="stylesheet" href="/static/app.css?v=20260925-toolbar-system">
+  <link rel="stylesheet" href="/static/app.css?v=20260930-layout-physics-fix-1">
   <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
 </head>
 <body>
@@ -108,6 +108,7 @@
           </div>
         </div>
         <button id="resetView" class="control toolbar-button secondary" aria-label="Reset view"><span class="toolbar-icon" aria-hidden="true">↺</span><span>Reset</span></button>
+        <button id="layoutSettingsButton" class="control toolbar-button" type="button" aria-expanded="false" aria-controls="layoutSettingsPanel"><span class="toolbar-icon" aria-hidden="true">☷</span><span>Layout</span></button>
         <label class="edge-style-label control">Edges
           <select id="edgeStyleSelect" aria-label="Edge style">
             <option value="classic">Classic</option>
@@ -120,6 +121,30 @@
       <section id="treeViewport" aria-label="Interactive family knowledge graph">
         <div id="treeCanvas"></div>
       </section>
+      <aside id="layoutSettingsPanel" class="layout-settings-panel" hidden aria-label="Appearance and layout settings">
+        <button id="closeLayoutSettings" class="close-sheet" type="button" aria-label="Close layout settings">×</button>
+        <h2>Appearance &amp; Layout</h2>
+        <div class="layout-view-section" data-layout-view="classic">
+          <label>Preset<select id="layoutPreset"><option value="compact">Compact</option><option value="balanced">Balanced</option><option value="spacious">Spacious</option><option value="custom">Custom</option></select></label>
+          <fieldset><legend>Classic Tree spacing</legend>
+            <label>Spouse distance<input id="nodeGapInput" type="range" min="180" max="360" step="10"><output id="nodeGapValue"></output></label>
+            <label>Horizontal gap<input id="horizontalGapInput" type="range" min="10" max="80" step="5"><output id="horizontalGapValue"></output></label>
+            <label>Vertical gap<input id="verticalGapInput" type="range" min="220" max="420" step="10"><output id="verticalGapValue"></output></label>
+            <label>Family-cluster gap<input id="clusterGapInput" type="range" min="80" max="300" step="10"><output id="clusterGapValue"></output></label>
+          </fieldset>
+        </div>
+        <div class="layout-view-section" data-layout-view="organic">
+          <fieldset><legend>Organic physics</legend>
+            <label>Node distance<input id="organicNodeGapInput" type="range" min="180" max="360" step="10"><output id="organicNodeGapValue"></output></label>
+            <label>Behavior<select id="physicsModeInput"><option value="off">Off</option><option value="gentle">Gentle</option><option value="dynamic">Dynamic</option></select></label>
+          </fieldset>
+        </div>
+        <fieldset><legend>Shared style</legend>
+          <label>Edge thickness<input id="edgeThicknessInput" type="range" min="1" max="5" step="0.5"><output id="edgeThicknessValue"></output></label>
+          <label class="checkbox-line"><input id="showEdgeLabelsInput" type="checkbox"> Show relationship labels</label>
+        </fieldset>
+        <button id="resetLayoutSettings" class="secondary" type="button">Reset defaults</button>
+      </aside>
     </section>
   </main>
 
@@ -176,6 +201,6 @@
   <script src="/static/js/admin-controller.js?v=20260929-admin-controller-1"></script>
   <script src="/static/js/export-utils.js?v=20260929-export-utils-1"></script>
   <script src="/static/js/account-ui.js?v=20260929-account-ui-1"></script>
-  <script src="/static/app.js?v=20260929-moving-dots-node-mask-1"></script>
+  <script src="/static/app.js?v=20260930-layout-physics-fix-1"></script>
 </body>
 </html>

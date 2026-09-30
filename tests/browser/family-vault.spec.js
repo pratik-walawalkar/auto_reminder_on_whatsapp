@@ -37,6 +37,57 @@ test('search highlights a matching family member', async ({page}) => {
   expect(errors).toEqual([]);
 });
 
+test('layout settings panel shows only the current view controls', async ({page}) => {
+  const panel = page.getByRole('complementary', {name: 'Appearance and layout settings'});
+  await page.getByRole('button', {name: 'Layout'}).click();
+  await expect(panel).toBeVisible();
+  await expect(panel.getByText('Classic Tree spacing')).toBeVisible();
+  await expect(panel.getByText('Organic physics')).toBeHidden();
+  await page.getByRole('button', {name: 'Classic Tree'}).click();
+  await expect(panel.getByText('Classic Tree spacing')).toBeVisible();
+  await expect(panel.getByText('Organic physics')).toBeHidden();
+  await page.getByRole('button', {name: 'Layout'}).click();
+  await page.getByRole('button', {name: 'Organic'}).click();
+  await page.getByRole('button', {name: 'Layout'}).click();
+  await expect(panel.getByText('Organic physics')).toBeVisible();
+  await expect(panel.getByText('Classic Tree spacing')).toBeHidden();
+});
+
+test('Organic physics can be turned off while nodes remain movable', async ({page}) => {
+  await page.getByRole('button', {name: 'Layout'}).click();
+  await page.getByLabel('Behavior').selectOption('off');
+  await expect(page.getByRole('region', {name: 'Interactive family knowledge graph'})).toBeVisible();
+  await expect(page.getByText(/family members shown/i)).toBeVisible();
+  await expect(page.locator('#treeCanvas canvas')).toHaveCount(1);
+  const interactionContract = await page.evaluate(async () => {
+    const source = await (await fetch('/static/app.js')).text();
+    const checkbox = document.querySelector('#showEdgeLabelsInput');
+    return {organicDragEnabled: source.includes("dragNodes: !classicTree"), capturesPositionsBeforeRerender: source.includes('captureCurrentOrganicPositions();'), checkboxSize: [checkbox.offsetWidth, checkbox.offsetHeight]};
+  });
+  expect(interactionContract.organicDragEnabled).toBeTruthy();
+  expect(interactionContract.capturesPositionsBeforeRerender).toBeTruthy();
+  expect(interactionContract.checkboxSize).toEqual([16, 16]);
+  const hubDistances = await page.evaluate(() => network.body.data.nodes.get().filter(node => String(node.id).startsWith('hub_')).map(hub => {
+    const parts = String(hub.id).slice(4).split('_');
+    const parentPositions = parts.map(id => network.getPositions([id])[id]).filter(Boolean);
+    return parentPositions.length === 2 ? Math.hypot(hub.x - (parentPositions[0].x + parentPositions[1].x) / 2, hub.y - (parentPositions[0].y + parentPositions[1].y) / 2) : 0;
+  }));
+  expect(Math.max(...hubDistances)).toBeLessThan(200);
+  await page.getByLabel('Behavior').selectOption('gentle');
+  await expect.poll(() => page.evaluate(() => network?.physics?.physicsEnabled)).toBe(true);
+  await expect.poll(() => page.evaluate(async () => (await (await fetch('/static/app.js')).text()).includes("if (mode !== 'off')"))).toBeTruthy();
+});
+
+test('classic layout preset persists and can be reset', async ({page}) => {
+  await page.getByRole('button', {name: 'Classic Tree'}).click();
+  await page.getByRole('button', {name: 'Layout'}).click();
+  const panel = page.getByRole('complementary', {name: 'Appearance and layout settings'});
+  await panel.getByLabel('Preset').selectOption('spacious');
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('familyVaultTreeSettings')).preset)).toBe('spacious');
+  await page.getByRole('button', {name: 'Reset defaults'}).click();
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('familyVaultTreeSettings')).preset)).toBe('balanced');
+});
+
 test('add member opens the proposal panel', async ({page}) => {
   await page.getByRole('button', {name: /Add family member/i}).click();
   await expect(page.getByRole('complementary', {name: 'Family member panel'})).toBeVisible();

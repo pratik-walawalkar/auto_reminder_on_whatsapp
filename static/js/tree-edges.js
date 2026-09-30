@@ -1,4 +1,4 @@
-﻿function treeBuildEdges({nodes, edges, classicTree, unions, visible, parentsOf, personById, levels, unionOfCouple, classicPositions, themeColors, relationshipColor, labeledEdge}) {  const organicEdgePhysics = (edgeKind, parentIds = [], childId = null) => {
+﻿function treeBuildEdges({nodes, edges, classicTree, organicPhysicsOff, unions, visible, parentsOf, personById, levels, unionOfCouple, classicPositions, initialPosition, themeColors, relationshipColor, labeledEdge}) {  const organicEdgePhysics = (edgeKind, parentIds = [], childId = null) => {
     if (classicTree) return {};
     const directFamily = edgeKind === 'union' || (edgeKind === 'parent' && parentIds.length > 0 && childId && (levels.get(childId) || 0) - Math.max(...parentIds.map(id => levels.get(id) || 0)) <= 1);
     return directFamily
@@ -31,14 +31,16 @@
     return child.gender === 'M' ? 'Son' : child.gender === 'F' ? 'Daughter' : 'Child';
   };
   const invisibleClassicNode = (id, position, level) => nodes.push({id, label: '', shape: 'dot', size: 1, borderWidth: 0, color: {background: 'rgba(0,0,0,0)', border: 'rgba(0,0,0,0)'}, level, ...position, physics: false, fixed: {x: true, y: true}, chosen: false});
-  const invisibleOrganicHub = (id, level) => nodes.push({id, label: '', shape: 'dot', size: 0, opacity: 0, borderWidth: 0, color: {background: 'rgba(0,0,0,0)', border: 'rgba(0,0,0,0)'}, level, physics: true, fixed: false, chosen: false});
+  const invisibleOrganicHub = (id, level, position) => nodes.push({id, label: '', shape: 'dot', size: 0, opacity: 0, borderWidth: 0, color: {background: 'rgba(0,0,0,0)', border: 'rgba(0,0,0,0)'}, level, ...position, physics: !organicPhysicsOff, fixed: organicPhysicsOff ? {x: true, y: true} : false, chosen: false});
   parentGroups.forEach(group => {
     const hasCouple = group.parentIds.length >= 2;
     const sourceId = group.parentIds[0];
     if (!classicTree) {
       if (hasCouple) {
         const hubId = `hub_${group.parentIds.join('_')}`;
-        invisibleOrganicHub(hubId, Math.max(...group.parentIds.map(parentId => levels.get(parentId) || 0)) + 0.5);
+        const parentPositions = group.parentIds.map(initialPosition);
+        const hubPosition = {x: parentPositions.reduce((total, position) => total + position.x, 0) / parentPositions.length, y: parentPositions.reduce((total, position) => total + position.y, 0) / parentPositions.length + 80};
+        invisibleOrganicHub(hubId, Math.max(...group.parentIds.map(parentId => levels.get(parentId) || 0)) + 0.5, hubPosition);
         group.parentIds.forEach(parentId => edges.push(labeledEdge({from: parentId, to: hubId, edgeKind: 'marriage-hub', label: '', arrows: {to: {enabled: false}}, color: {color: themeColors.edge, opacity: 0.72}, width: 1.6, dashes: [4, 4], smooth: {enabled: false}, length: 45, springConstant: 0.18, physics: true})));
         group.childIds.forEach(childId => edges.push(labeledEdge({from: hubId, to: childId, edgeKind: 'parent', label: childRelationLabel(group.parentIds, childId), arrows: {to: {enabled: true, scaleFactor: 0.8}}, color: {color: themeColors.edge, highlight: themeColors.edgeHighlight}, width: 2, smooth: {enabled: true, type: 'dynamic'}, length: 160, springConstant: 0.04, physics: true})));
       } else {

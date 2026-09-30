@@ -977,6 +977,17 @@ button.danger {
   border: 1px solid color-mix(in srgb, var(--ring) 40%, transparent);
 }
 
+/* ---------- Appearance and layout settings ---------- */
+.layout-settings-panel { position: fixed; top: 0; right: 0; bottom: 0; z-index: 6; width: min(390px, 100vw); overflow-y: auto; padding: 30px 26px; background: var(--panel); border-left: 1px solid var(--line); box-shadow: var(--shadow-lg); backdrop-filter: blur(var(--glass-blur)); }
+.layout-settings-panel h2 { margin: 0 0 24px; color: var(--text); font-size: 1rem; }
+.layout-settings-panel > label, .layout-settings-panel fieldset label { display: grid; gap: 7px; margin: 16px 0; color: var(--muted); font-size: .82rem; }
+.layout-settings-panel select, .layout-settings-panel input[type='range'] { width: 100%; }
+.layout-settings-panel fieldset { margin: 20px 0; padding: 8px 14px 4px; border: 1px solid var(--line); border-radius: 14px; }
+.layout-settings-panel legend { padding: 0 6px; color: var(--text); font-size: .76rem; letter-spacing: .08em; text-transform: uppercase; }
+.layout-settings-panel output { color: var(--text); font-variant-numeric: tabular-nums; }
+.layout-settings-panel .checkbox-line { display: flex; grid-template-columns: auto 1fr; align-items: center; gap: 8px; }
+.layout-settings-panel .checkbox-line input[type='checkbox'] { width: 16px; height: 16px; padding: 0; margin: 0; flex: 0 0 16px; }
+
 /* ---------- Side panel (view / add / edit) ---------- */
 .side-panel-backdrop {
   position: fixed;

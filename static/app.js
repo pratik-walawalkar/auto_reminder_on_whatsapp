@@ -177,8 +177,63 @@ function buildUnionMaps(unions, people) {
 // traditional pedigree chart) rather than side by side. Each generation's
 // children are centered beneath their parents' union point.
 function computeLayout(people, unions, parentsOf, levels) {
-  return treeComputeLayout(people, unions, parentsOf, levels);
+  return treeComputeLayout(people, unions, parentsOf, levels, state.treeSettings);
 }
+
+const LAYOUT_PRESETS = {
+  compact: {nodeGap: 220, horizontalGap: 12, verticalGap: 240, clusterGap: 110},
+  balanced: {nodeGap: 260, horizontalGap: 20, verticalGap: 300, clusterGap: 180},
+  spacious: {nodeGap: 320, horizontalGap: 40, verticalGap: 380, clusterGap: 260}
+};
+function saveTreeSettings() { localStorage.setItem('familyVaultTreeSettings', JSON.stringify(state.treeSettings)); }
+function updateLayoutViewVisibility() {
+  document.querySelectorAll('.layout-view-section').forEach(section => { section.hidden = section.dataset.layoutView !== state.viewMode; });
+}
+function syncLayoutSettings() {
+  const settings = state.treeSettings;
+  $('layoutPreset').value = settings.preset;
+  [['nodeGap', 'nodeGapInput', 'nodeGapValue'], ['nodeGap', 'organicNodeGapInput', 'organicNodeGapValue'], ['horizontalGap', 'horizontalGapInput', 'horizontalGapValue'], ['verticalGap', 'verticalGapInput', 'verticalGapValue'], ['clusterGap', 'clusterGapInput', 'clusterGapValue'], ['edgeThickness', 'edgeThicknessInput', 'edgeThicknessValue']].forEach(([key, inputId, outputId]) => { if ($(inputId)) $(inputId).value = settings[key]; if ($(outputId)) $(outputId).textContent = `${settings[key]} px`; });
+  if ($('showEdgeLabelsInput')) $('showEdgeLabelsInput').checked = settings.showLabels;
+  if ($('physicsModeInput')) $('physicsModeInput').value = settings.physics;
+  updateLayoutViewVisibility();
+}
+function openLayoutSettings() { syncLayoutSettings(); $('layoutSettingsPanel').hidden = false; $('layoutSettingsButton').setAttribute('aria-expanded', 'true'); }
+function closeLayoutSettings() { $('layoutSettingsPanel').hidden = true; $('layoutSettingsButton').setAttribute('aria-expanded', 'false'); }
+function captureCurrentOrganicPositions() {
+  if (state.viewMode !== 'organic' || !network || !state.family) return;
+  const positions = network.getPositions();
+  state.family.individuals.forEach(person => {
+    if (positions[person.id]) person.position = {x: positions[person.id].x, y: positions[person.id].y};
+  });
+}
+function rerenderTreeWithSettings() {
+  const viewport = network ? preserveNetworkViewport(network) : null;
+  captureCurrentOrganicPositions();
+  teardownNetwork();
+  renderTree();
+  if (network && viewport) network.moveTo({position: viewport.view, scale: viewport.scale, animation: false});
+}
+function setOrganicPhysicsMode(mode) {
+  state.treeSettings = {...state.treeSettings, physics: mode, preset: 'custom'};
+  saveTreeSettings();
+  if (state.viewMode !== 'organic' || !network || !networkNodes) { syncLayoutSettings(); return; }
+  if (mode !== 'off') {
+    rerenderTreeWithSettings();
+    syncLayoutSettings();
+    return;
+  }
+  const positions = network.getPositions();
+  const hubUpdates = networkNodes.get().filter(node => String(node.id).startsWith('hub_')).map(node => ({id: node.id, x: positions[node.id]?.x ?? node.x, y: positions[node.id]?.y ?? node.y, fixed: {x: true, y: true}, physics: false}));
+  networkNodes.update(hubUpdates);
+  network.setOptions({physics: {enabled: false}});
+  network.stopSimulation();
+  syncLayoutSettings();
+}
+function updateLayoutSetting(key, value) {
+  if (key === 'physics') return setOrganicPhysicsMode(value);
+  state.treeSettings = {...state.treeSettings, [key]: value, preset: 'custom'}; saveTreeSettings(); syncLayoutSettings(); rerenderTreeWithSettings();
+}
+function resetLayoutSettings() { state.treeSettings = {...TREE_SETTINGS_DEFAULTS}; saveTreeSettings(); syncLayoutSettings(); rerenderTreeWithSettings(); }
 
 function focusSearchMatch(personId) {
   if (!network || !personId) return;
@@ -241,21 +296,27 @@ function renderTree() {
   const {partnerOf, unionOfCouple} = buildUnionMaps(unions, people);
   const classicTree = state.viewMode === 'classic';
   const classicPositions = classicTree ? computeLayout(people, unions, parentsOf, levels) : null;
-  const seedCounters = new Map();
+    const seedCounters = new Map();
+  const initialPositions = new Map();
   const savedOrganicPositions = new Map(people.filter(person => person.position && Number.isFinite(person.position.x) && Number.isFinite(person.position.y)).map(person => [person.id, person.position]));
-  const initialPosition = person => {
-    if (!classicTree && savedOrganicPositions.has(person.id)) return savedOrganicPositions.get(person.id);
-    if (classicPositions?.has(person.id)) return classicPositions.get(person.id);
-    const component = componentById.get(person.id) || 0;
-    const index = seedCounters.get(component) || 0;
-    seedCounters.set(component, index + 1);
-    // Organic mode starts as a wide constellation so physics refines the graph
-    // without collapsing every family branch into the middle of the viewport.
-    return {x: component * 1200 + index * 420, y: (levels.get(person.id) || 0) * 360 + 60};
+  const initialPosition = personOrId => {
+    const id = typeof personOrId === 'string' ? personOrId : personOrId.id;
+    if (initialPositions.has(id)) return initialPositions.get(id);
+    let position;
+    if (!classicTree && savedOrganicPositions.has(id)) position = savedOrganicPositions.get(id);
+    else if (classicPositions?.has(id)) position = classicPositions.get(id);
+    else {
+      const component = componentById.get(id) || 0;
+      const index = seedCounters.get(component) || 0;
+      seedCounters.set(component, index + 1);
+      position = {x: component * 1200 + index * 420, y: (levels.get(id) || 0) * 360 + 60};
+    }
+    initialPositions.set(id, position);
+    return position;
   };
   const nodes = [];
   const edges = [];
-  const labeledEdge = edge => ({...edge, font: {size: 11, color: document.documentElement.dataset.theme === 'light' ? '#706357' : '#94a3b8', strokeWidth: 3, strokeColor: document.documentElement.dataset.theme === 'light' ? '#fdfbf7' : '#0f172a', align: 'horizontal'}});
+  const labeledEdge = edge => ({...edge, label: state.treeSettings.showLabels ? edge.label : '', width: (edge.width || 2) * (state.treeSettings.edgeThickness / 2), font: {size: 11, color: document.documentElement.dataset.theme === 'light' ? '#706357' : '#94a3b8', strokeWidth: 3, strokeColor: document.documentElement.dataset.theme === 'light' ? '#fdfbf7' : '#0f172a', align: 'horizontal'}});
   const names = ids => ids.map(id => personById.get(id)).filter(Boolean).map(displayName).filter(Boolean);
   const relationshipTooltip = personId => {
     const parentIds = parentsOf.get(personId) || [];
@@ -307,7 +368,7 @@ function renderTree() {
       ...(classicTree ? {fixed: {x: true, y: true}} : {})
     });
   });
-  treeBuildEdges({nodes, edges, classicTree, unions, visible, parentsOf, personById, levels, unionOfCouple, classicPositions, themeColors, relationshipColor, labeledEdge});
+  treeBuildEdges({nodes, edges, classicTree, organicPhysicsOff: state.treeSettings.physics === 'off', unions, visible, parentsOf, personById, levels, unionOfCouple, classicPositions, initialPosition, themeColors, relationshipColor, labeledEdge});
 
   const container = $('treeCanvas');
   container.innerHTML = '';
@@ -367,7 +428,7 @@ function renderTree() {
   
   const networkConfig = {
     layout: {hierarchical: {enabled: false}},
-    physics: classicTree ? {enabled: false} : {enabled: true, solver: 'barnesHut', barnesHut: {gravitationalConstant: -25000, centralGravity: 0.08, springLength: 220, springConstant: 0.03, damping: 0.09, avoidOverlap: 1}, stabilization: {enabled: true, iterations: 1000, fit: true}},
+    physics: classicTree || state.treeSettings.physics === 'off' ? {enabled: false} : {enabled: true, solver: 'barnesHut', barnesHut: {gravitationalConstant: state.treeSettings.physics === 'dynamic' ? -25000 : -18000, centralGravity: 0.08, springLength: state.treeSettings.nodeGap, springConstant: state.treeSettings.physics === 'dynamic' ? 0.03 : 0.02, damping: 0.09, avoidOverlap: 1}, stabilization: {enabled: true, iterations: state.treeSettings.physics === 'dynamic' ? 1000 : 600, fit: true}},
     nodes: {
       shape: 'image',
       borderWidth: 2,
@@ -408,8 +469,7 @@ function renderTree() {
       });
     });
   } else {
-    // Organic mode: keep physics for dynamic layout
-    network.setOptions({physics: {enabled: true}});
+    network.setOptions({physics: {enabled: state.treeSettings.physics !== 'off'}});
   }
   container.appendChild(svgOverlay);
   const syncConnectorPositions = () => {};
@@ -901,10 +961,18 @@ function setViewMode(mode) {
     $(id).classList.toggle('active', active);
     $(id).setAttribute('aria-pressed', String(active));
   });
+    updateLayoutViewVisibility();
   renderTree();
 }
 if ($('organicView')) $('organicView').onclick = () => setViewMode('organic');
 if ($('classicView')) $('classicView').onclick = () => setViewMode('classic');
+if ($('layoutSettingsButton')) $('layoutSettingsButton').onclick = openLayoutSettings;
+if ($('closeLayoutSettings')) $('closeLayoutSettings').onclick = closeLayoutSettings;
+if ($('resetLayoutSettings')) $('resetLayoutSettings').onclick = resetLayoutSettings;
+if ($('layoutPreset')) $('layoutPreset').onchange = event => { const preset = event.target.value; if (LAYOUT_PRESETS[preset]) state.treeSettings = {...state.treeSettings, ...LAYOUT_PRESETS[preset], preset}; saveTreeSettings(); syncLayoutSettings(); rerenderTreeWithSettings(); };
+[['nodeGap', 'nodeGapInput'], ['nodeGap', 'organicNodeGapInput'], ['horizontalGap', 'horizontalGapInput'], ['verticalGap', 'verticalGapInput'], ['clusterGap', 'clusterGapInput'], ['edgeThickness', 'edgeThicknessInput']].forEach(([key, id]) => { if ($(id)) $(id).oninput = event => updateLayoutSetting(key, Number(event.target.value)); });
+if ($('showEdgeLabelsInput')) $('showEdgeLabelsInput').onchange = event => updateLayoutSetting('showLabels', event.target.checked);
+if ($('physicsModeInput')) $('physicsModeInput').onchange = event => updateLayoutSetting('physics', event.target.value);
 setViewMode(state.viewMode);
 if ($('resetView')) {
   $('resetView').onclick = () => {

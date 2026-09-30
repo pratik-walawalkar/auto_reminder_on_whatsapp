@@ -1,11 +1,11 @@
-﻿function treeComputeLayout(people, unions, parentsOf, levels) {
+﻿function treeComputeLayout(people, unions, parentsOf, levels, settings = {}) {
   const positions = new Map();
 
-  const COUPLE_HGAP = 260;    // Fixed spouse separation; the union midpoint sits 80px from either partner.
-  const LEVEL_HEIGHT = 300;   // Fixed generation-row spacing.
-  const NODE_WIDTH = 230;     // Base horizontal slot for a single column (matches card width)
-  const SIBLING_GAP = 20;     // Compact gap between adjacent child subtrees.
-  const ROOT_GAP = 180;       // Compact buffer between independent branches.
+  const COUPLE_HGAP = settings.nodeGap ?? 260;
+  const LEVEL_HEIGHT = settings.verticalGap ?? 300;
+  const NODE_WIDTH = 230;
+  const SIBLING_GAP = settings.horizontalGap ?? 20;
+  const ROOT_GAP = settings.clusterGap ?? 180;
   const MARGIN_X = 300;
   const MARGIN_Y = 60;
 
