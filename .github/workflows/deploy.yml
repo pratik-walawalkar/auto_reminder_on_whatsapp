@@ -28,4 +28,6 @@ jobs:
       - name: Run application tests
         run: python -m pytest -p no:cacheprovider
       - name: Check frontend JavaScript syntax
-        run: node --check static/app.js
+        run: |
+          node --check static/app.js
+          for file in static/js/*.js; do node --check "$file"; done

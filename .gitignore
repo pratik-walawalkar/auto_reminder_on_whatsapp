@@ -18,3 +18,7 @@ gramps-web-main.zip
 gramps-web-api-master.zip
 gramps-web-reference/
 gramps-web-api-reference/
+
+# Playwright browser-test output.
+playwright-report/
+test-results/
