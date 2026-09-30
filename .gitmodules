@@ -1,0 +1,4 @@
+[submodule "family_tree"]
+	path = family_tree
+	url = https://github.com/pratik-walawalkar/auto_reminder_on_whatsapp.git
+	branch = family_tree
