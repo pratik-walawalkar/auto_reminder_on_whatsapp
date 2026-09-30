@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 
@@ -73,7 +73,10 @@ def test_shell_documents_same_tier_spouse_layout():
 
 
 def test_search_match_uses_smooth_centered_pan_and_zoom():
-    source = server.app.test_client().get("/static/app.js").data.decode()
+    client = server.app.test_client()
+    source = client.get("/static/app.js").data.decode()
+    lineage_source = client.get("/static/js/tree-lineage.js").data.decode()
+    source += lineage_source
 
     assert "function focusSearchMatch(personId)" in source
     assert "const position = network.getPositions([personId])[personId]" in source
@@ -94,6 +97,10 @@ def test_search_match_uses_smooth_centered_pan_and_zoom():
 
 def test_classic_tree_uses_union_hubs_with_straight_edges_and_manual_layout():
     source = server.app.test_client().get("/static/app.js").data.decode()
+    layout_source = server.app.test_client().get("/static/js/tree-layout.js").data.decode()
+    edges_source = server.app.test_client().get("/static/js/tree-edges.js").data.decode()
+    source += layout_source + edges_source
+
 
     # Union hubs still route two-parent families through an invisible junction node.
     assert "const intersectionId = `union_${group.parentIds.join('_')}`" in source
@@ -535,3 +542,5 @@ def test_admin_can_delete_another_user(client, admin_token):
     assert response.status_code == 204
     listing = client.get("/api/admin/users", headers=csrf(admin_token))
     assert "removable" not in {user["username"] for user in listing.get_json()["users"]}
+
+

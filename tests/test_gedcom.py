@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import gedcom
 
@@ -54,3 +54,5 @@ def test_export_gedcom_writes_file(tmp_path, monkeypatch, valid_family):
     assert destination.exists()
     assert destination.read_text(encoding="utf-8") == content
     assert content.rstrip("\n").endswith("0 TRLR")
+
+

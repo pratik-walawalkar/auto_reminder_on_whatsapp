@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from copy import deepcopy
 from pathlib import Path
@@ -72,3 +72,5 @@ def proposed_person() -> dict:
 @pytest.fixture
 def valid_family(family_data) -> dict:
     return deepcopy(family_data)
+
+

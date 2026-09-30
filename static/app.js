@@ -1,21 +1,4 @@
-const state = {user: null, csrf: null, family: null, scale: 1, x: 40, y: 40, drag: null, activePersonId: null, edgeStyle: localStorage.getItem('familyVaultEdgeStyle') || 'classic', viewMode: localStorage.getItem('familyVaultView') || 'organic'};
-const $ = id => document.getElementById(id);
-const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[char]));
-
-async function api(url, options = {}) {
-  const headers = {...(options.body ? {'Content-Type': 'application/json'} : {}), ...(options.headers || {})};
-  if (state.csrf) headers['X-CSRF-Token'] = state.csrf;
-  const response = await fetch(url, {...options, headers});
-  const data = response.status === 204 ? null : await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || 'Request failed.');
-  return data;
-}
-
-function notice(message) {
-  const target = $('status');
-  target.textContent = message;
-  target.hidden = !message;
-}
+﻿
 
 function displayName(person) {
   return person.display_name || [person.first_name, person.middle_name, person.last_name].filter(Boolean).join(' ');
@@ -57,7 +40,7 @@ function hide(id) {
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   localStorage.setItem('familyVaultTheme', theme);
-  $('themeToggle').textContent = theme === 'dark' ? '🌙' : '☀️';
+  $('themeToggle').textContent = theme === 'dark' ? '\u{1F319}' : '\u2600\uFE0F';
 }
 
 function toggleTheme() {
@@ -119,118 +102,20 @@ window.addEventListener('keyup', event => {
 });
 
 function getAncestorsRecursive(nodeId, dataset, visited = new Set()) {
-  if (!nodeId || visited.has(nodeId)) return visited;
-  visited.add(nodeId);
-  const person = Array.isArray(dataset) ? dataset.find(candidate => candidate.id === nodeId) : null;
-  const parentIds = person?.parents || person?.relationships?.parents || (dataset instanceof Map ? dataset.get(nodeId) || [] : []);
-  parentIds.forEach(parentId => getAncestorsRecursive(parentId, dataset, visited));
-  return visited;
+  return lineageGetAncestorsRecursive(nodeId, dataset, visited);
 }
 
 function applyLineageHover(nodeId, people, unions, parentsOf) {
-  if (isShiftPressed && state.lineageHover) return;
-  if (!networkNodes || !networkEdges) return;
-  const lineageDataset = people.map(person => ({...person, relationships: {...person.relationships, parents: parentsOf.get(person.id) || []}}));
-  const lineage = getAncestorsRecursive(nodeId, parentsOf);
-  const personIds = new Set(people.map(person => person.id));
-  const vividNodes = new Set(lineage);
-  const allEdges = networkEdges.get();
-  const personById = new Map(lineageDataset.map(person => [person.id, person]));
-  let changed = true;
-  while (changed) {
-    changed = false;
-    [...vividNodes].forEach(id => {
-      const ancestorCount = vividNodes.size;
-      getAncestorsRecursive(id, parentsOf, vividNodes);
-      if (vividNodes.size !== ancestorCount) changed = true;
-      unions.forEach(union => {
-        const partnerIds = (union.partners || []).map(partner => partner.individual_id);
-        const childIds = (union.children || []).map(child => child.individual_id);
-        if (partnerIds.includes(id) || childIds.some(childId => vividNodes.has(childId))) {
-          partnerIds.forEach(partnerId => {
-            if (personById.has(partnerId) && !vividNodes.has(partnerId)) {
-              vividNodes.add(partnerId);
-              changed = true;
-            }
-          });
-        }
-      });
-    });
-  }
-  changed = true;
-  while (changed) {
-    changed = false;
-    allEdges.forEach(edge => {
-      const hiddenBranch = !personIds.has(edge.from) || !personIds.has(edge.to);
-      if (edge.edgeKind === 'parent' && hiddenBranch && vividNodes.has(edge.to) && !vividNodes.has(edge.from)) {
-        vividNodes.add(edge.from);
-        changed = true;
-      }
-      if (edge.edgeKind === 'marriage-hub' && vividNodes.has(edge.from) && !vividNodes.has(edge.to)) {
-        vividNodes.add(edge.to);
-        changed = true;
-      }
-    });
-  }
-  const vividEdges = new Set(allEdges.filter(edge => {
-    if (edge.edgeKind === 'parent') return vividNodes.has(edge.from) && vividNodes.has(edge.to);
-    return vividNodes.has(edge.from) && vividNodes.has(edge.to);
-  }).map(edge => edge.id));
-  networkNodes.update(networkNodes.get().map(node => ({
-    id: node.id,
-    opacity: vividNodes.has(node.id) ? 1 : 0.12,
-    color: vividNodes.has(node.id) ? node._lineageColor : {background: 'rgba(148, 163, 184, 0.12)', border: 'rgba(148, 163, 184, 0.16)'}
-  })));
-    const dimmedLabelStroke = document.documentElement.dataset.theme === 'light'
-    ? 'rgba(253, 251, 247, 0.12)'
-    : 'rgba(15, 23, 42, 0.12)';
-  networkEdges.update(allEdges.map(edge => ({
-    id: edge.id,
-    opacity: vividEdges.has(edge.id) ? 1 : 0.12,
-    width: vividEdges.has(edge.id) ? Math.max(edge._lineageWidth || 2, 4) : edge._lineageWidth || 2,
-    selectionWidth: vividEdges.has(edge.id) ? 6 : edge._lineageSelectionWidth || 2,
-    color: vividEdges.has(edge.id)
-      ? {...edge._lineageColor, hover: edge._lineageColor.color}
-      : {color: 'rgba(148, 163, 184, 0.12)', highlight: 'rgba(148, 163, 184, 0.12)', hover: 'rgba(148, 163, 184, 0.12)'},
-    font: edge._lineageFont
-      ? {...edge._lineageFont, color: vividEdges.has(edge.id) ? edge._lineageFont.color : 'rgba(148, 163, 184, 0.12)', strokeColor: vividEdges.has(edge.id) ? edge._lineageFont.strokeColor : dimmedLabelStroke}
-      : undefined
-  })));
-  state.lineageHover = {nodeId, lineage, vividNodes, vividEdges};
-  updateAnimatedConnectionOpacity();
-  lastPointerNodeId = nodeId;
+  return lineageApplyHover(nodeId, people, unions, parentsOf, {state, networkNodes, networkEdges, isShiftPressed, lastPointerNodeId});
 }
 
 function updateAnimatedConnectionOpacity() {
-  document.querySelectorAll('.connection-overlay circle.link-dot').forEach(dot => {
-    const edgeId = dot.dataset.edgeId;
-    const baseOpacity = state.lineageHover
-      ? state.lineageHover.vividEdges.has(edgeId) ? 1 : 0.12
-      : 1;
-    const opacityAnimation = dot.querySelector('animate[attributeName="opacity"]');
-    if (opacityAnimation) opacityAnimation.setAttribute('values', `${baseOpacity};${baseOpacity};0`);
-    dot.style.opacity = String(baseOpacity);
-  });
+  return lineageUpdateAnimatedConnectionOpacity(state);
 }
 
 function clearLineageHover() {
-  if (isShiftPressed) return;
-
-  if (!networkNodes || !networkEdges) return;
-  networkNodes.update(networkNodes.get().map(node => ({id: node.id, opacity: 1, color: node._lineageColor})));
-  networkEdges.update(networkEdges.get().map(edge => ({
-    id: edge.id,
-    opacity: edge._lineageOpacity ?? 1,
-    width: edge._lineageWidth || 2,
-        selectionWidth: edge._lineageSelectionWidth || 2,
-    color: edge._lineageColor,
-    font: edge._lineageFont
-  })));
-
-  state.lineageHover = null;
-  updateAnimatedConnectionOpacity();
+  return lineageClearHover({state, networkNodes, networkEdges, isShiftPressed});
 }
-
 function getCurrentThemeStyle() {
   const activeTheme = document.documentElement.getAttribute('data-theme');
   return activeTheme === 'light' ? WORKSPACE_THEME_LIGHT : WORKSPACE_THEME_DARK;
@@ -248,83 +133,34 @@ function executeThemeCanvasRefresh() {
   themeRefreshPending = true;
   requestAnimationFrame(() => {
     themeRefreshPending = false;
-    const view = network.getViewPosition();
-    const scale = network.getScale();
+    const viewport = preserveNetworkViewport(network);
     teardownNetwork();
     renderTree();
-    if (network) network.moveTo({position: view, scale, animation: false});
+    if (network && viewport) {
+      const view = viewport.view;
+      const scale = viewport.scale;
+      network.moveTo({position: view, scale, animation: false});
+    }
   });
 }
 
 function teardownNetwork() {
-  if (networkNodes) networkNodes.clear();
-  if (networkEdges) networkEdges.clear();
-  if (network) network.destroy();
+  resetTreeLifecycle({network, networkNodes, networkEdges, container: $('treeCanvas'), state});
   network = null;
   networkNodes = null;
   networkEdges = null;
-  state.svgOverlay = null;
-  state.edgeAnimationMap = null;
-  const container = $('treeCanvas');
-  if (container) container.replaceChildren();
-  state.scale = 1;
-  state.x = 40;
-  state.y = 40;
 }
 
 
 function computeDynamicGenerations(people, parentsOf) {
-  const levels = new Map();
-  const queue = [];
-  people.forEach(person => {
-    if (!(parentsOf.get(person.id) || []).length) {
-      levels.set(person.id, 0);
-      queue.push(person.id);
-    }
-  });
-  while (queue.length) {
-    const parentId = queue.shift();
-    const parentLevel = levels.get(parentId);
-    people.forEach(person => {
-      if (!(parentsOf.get(person.id) || []).includes(parentId)) return;
-      const nextLevel = parentLevel + 1;
-      if (!levels.has(person.id) || levels.get(person.id) < nextLevel) {
-        levels.set(person.id, nextLevel);
-        queue.push(person.id);
-      }
-    });
-  }
-  people.forEach(person => { if (!levels.has(person.id)) levels.set(person.id, 0); });
-  return levels;
+  return treeComputeDynamicGenerations(people, parentsOf);
 }
 
 // Builds shared couple/child lookup maps from the union records. Shared by
 // computeLayout (for coordinates) and renderTree (for edge junction lookup)
 // so both agree on the same coupleKey -> union.id mapping.
 function buildUnionMaps(unions, people) {
-  const partnerOf = new Map();
-  const unionOfCouple = new Map();
-  const childrenOf = new Map();
-  unions.forEach(union => {
-    const pids = (union.partners || []).map(p => p.individual_id).filter(Boolean);
-    if (pids.length === 2) {
-      const sorted = [...pids].sort();
-      partnerOf.set(pids[0], pids[1]);
-      partnerOf.set(pids[1], pids[0]);
-      unionOfCouple.set(sorted.join('|'), union.id);
-    }
-    if (pids.length >= 1) {
-      const coupleKey = [...pids].sort().join('|');
-      const childIds = (union.children || [])
-        .map(c => c.individual_id)
-        .filter(cid => people.some(p => p.id === cid));
-      if (childIds.length) {
-        const existing = childrenOf.get(coupleKey) || [];
-        childrenOf.set(coupleKey, [...new Set([...existing, ...childIds])]);
-      }
-    }
-  });
-  return {partnerOf, unionOfCouple, childrenOf};
+  return treeBuildUnionMaps(unions, people);
 }
 
 // GEOMETRIC LAYOUT ENGINE FOR THE CLASSIC TREE VIEW
@@ -332,240 +168,7 @@ function buildUnionMaps(unions, people) {
 // traditional pedigree chart) rather than side by side. Each generation's
 // children are centered beneath their parents' union point.
 function computeLayout(people, unions, parentsOf, levels) {
-  const positions = new Map();
-
-  const COUPLE_HGAP = 260;    // Fixed spouse separation; the union midpoint sits 80px from either partner.
-  const LEVEL_HEIGHT = 300;   // Fixed generation-row spacing.
-  const NODE_WIDTH = 230;     // Base horizontal slot for a single column (matches card width)
-  const SIBLING_GAP = 20;     // Compact gap between adjacent child subtrees.
-  const ROOT_GAP = 180;       // Compact buffer between independent branches.
-  const MARGIN_X = 300;
-  const MARGIN_Y = 60;
-
-  const {partnerOf, unionOfCouple, childrenOf} = buildUnionMaps(unions, people);
-  const visited = new Set();
-  // Populated after root branches are ordered (below), but declared here so the
-  // positionCouple closure can see the same Map once it is filled in â€” this lets
-  // "which root branch does this spouse belong to, and how far right did that
-  // branch land" bias sibling ordering before that branch has even been placed.
-  const personRootIndex = new Map();
-  const rankOfRoot = new Map();
-
-    // Width required to lay out a couple (or single parent) and all descendants.
-  // centerX is the union midpoint, so a couple's two cards occupy the complete
-  // footprint instead of competing for the same single-card sibling slot.
-  const getOwnWidth = spouseId => spouseId
-    ? NODE_WIDTH + COUPLE_HGAP
-    : NODE_WIDTH;
-  const getSubtreeWidth = (bloodId, spouseId) => {
-    const coupleKey = spouseId ? [bloodId, spouseId].sort().join('|') : bloodId;
-    const kids = (childrenOf.get(coupleKey) || []).slice().sort();
-    const ownWidth = getOwnWidth(spouseId);
-    if (!kids.length) return ownWidth;
-    let total = 0;
-    kids.forEach(kidId => {
-      const spouse = partnerOf.get(kidId);
-      total += getSubtreeWidth(kidId, spouse) + SIBLING_GAP;
-    });
-    return Math.max(total - SIBLING_GAP, ownWidth);
-  };
-
-  // Places bloodId at (centerX, y), their spouse (if any) directly below,
-  // then recurses into children centered beneath the couple's union point.
-  // centerX is only a provisional placement: once children are laid out, this
-  // couple is re-centered over the true midpoint of its own (freshly placed)
-  // children so it sits exactly between them, like a hand-drawn pedigree chart,
-  // rather than skewed toward whichever child happens to have a bigger subtree.
-  // ownRootIdx identifies which root branch this whole subtree belongs to, so a
-  // child married into a DIFFERENT root branch can be pulled toward whichever side
-  // that other branch was placed on (see sortKeyFor below), shortening their
-  // cross-branch connector instead of leaving it to cut across the whole canvas.
-  const positionCouple = (bloodId, spouseId, centerX, y, ownRootIdx) => {
-    let coupleKey = bloodId;
-    if (spouseId) {
-      coupleKey = [bloodId, spouseId].sort().join('|');
-    }
-
-    const ownRank = rankOfRoot.has(ownRootIdx) ? rankOfRoot.get(ownRootIdx) : 0;
-    const sortKeyFor = id => {
-      // Already positioned elsewhere (grafted in via marriage into a different
-      // branch that was laid out first): use their real x so this ordering
-      // matches their true location instead of an arbitrary alphabetical slot.
-      if (visited.has(id) && positions.has(id)) return positions.get(id).x;
-      const spouse = partnerOf.get(id);
-      const spouseRoot = spouse !== undefined ? personRootIndex.get(spouse) : undefined;
-      if (spouseRoot !== undefined && spouseRoot !== ownRootIdx && rankOfRoot.has(spouseRoot)) {
-        // Cross-branch marriage: bias far enough to dominate normal centerX-based
-        // ordering, signed so a spouse branch placed to the right pulls this child
-        // right, and one placed to the left pulls this child left.
-        return centerX + (rankOfRoot.get(spouseRoot) - ownRank) * 1e6;
-      }
-      return centerX;
-    };
-    // Order siblings by that bias so a child's cross-branch marriage shortens its
-    // connector, instead of sitting in the middle by alphabetical accident.
-    const kids = (childrenOf.get(coupleKey) || []).slice().sort().sort((a, b) => sortKeyFor(a) - sortKeyFor(b));
-        if (!kids.length) {
-      const primaryX = spouseId ? centerX - COUPLE_HGAP / 2 : centerX;
-      positions.set(bloodId, {x: Math.round(primaryX), y: Math.round(y)});
-      if (spouseId) {
-        // centerX is the union midpoint; keep both cards inside the reserved slot.
-        positions.set(spouseId, {x: Math.round(centerX + COUPLE_HGAP / 2), y: Math.round(y)});
-        const unionId = unionOfCouple.get(coupleKey);
-        if (unionId) positions.set(unionId, {x: Math.round(centerX), y: Math.round(y)});
-      }
-      return;
-    }
-
-    // Only kids not yet positioned reserve horizontal slot space â€” one already placed
-    // elsewhere (grafted in via marriage) draws its own connector straight to wherever
-    // it actually landed and must NOT leave a gap here, or its unvisited siblings would
-    // be pushed off-center away from the trunk for a slot that renders nothing.
-    const freshKids = kids.filter(kidId => !visited.has(kidId));
-    let totalWidth = 0;
-    const widths = freshKids.map(kidId => {
-      const spouse = partnerOf.get(kidId);
-      const w = spouse ? getSubtreeWidth(kidId, spouse) : NODE_WIDTH;
-      totalWidth += w + SIBLING_GAP;
-      return w;
-    });
-    totalWidth -= SIBLING_GAP;
-
-    const childY = y + LEVEL_HEIGHT;
-    // Children belong beneath the parent for a single node, or beneath the
-    // midpoint of the couple for a side-by-side pair.
-        const childAnchorX = centerX;
-    let currentX = childAnchorX - totalWidth / 2;
-        const childCenters = [];
-    kids.forEach(kidId => {
-      const spouse = partnerOf.get(kidId);
-      const existingCenter = spouse
-        ? positions.get(unionOfCouple.get([kidId, spouse].sort().join('|')))?.x
-        : positions.get(kidId)?.x;
-      if (existingCenter !== undefined) childCenters.push(existingCenter);
-    });
-    freshKids.forEach((kidId, idx) => {
-      const width = widths[idx];
-      const kidCenterX = currentX + width / 2;
-      visited.add(kidId);
-      const spouse = partnerOf.get(kidId);
-      if (spouse) visited.add(spouse);
-      positionCouple(kidId, spouse, kidCenterX, childY, ownRootIdx);
-      const placedCenter = spouse
-        ? positions.get(unionOfCouple.get([kidId, spouse].sort().join('|')))?.x ?? kidCenterX
-        : positions.get(kidId)?.x ?? kidCenterX;
-      childCenters.push(placedCenter);
-      currentX += width + SIBLING_GAP;
-    });
-
-    // Center over all child unions, including grafted children already positioned
-    // elsewhere, so cross-branch family groups remain visually connected.
-    const childGroupCenterX = childCenters.length ? (Math.min(...childCenters) + Math.max(...childCenters)) / 2 : centerX;
-    const primaryX = spouseId ? childGroupCenterX - COUPLE_HGAP / 2 : childGroupCenterX;
-    positions.set(bloodId, {x: Math.round(primaryX), y: Math.round(y)});
-    if (spouseId) {
-      // Keep the couple's union midpoint aligned with the center of its child group.
-      positions.set(spouseId, {x: Math.round(childGroupCenterX + COUPLE_HGAP / 2), y: Math.round(y)});
-      const unionId = unionOfCouple.get(coupleKey);
-      if (unionId) positions.set(unionId, {x: Math.round(childGroupCenterX), y: Math.round(y)});
-    }
-  };
-
-  // Root subtrees: people with no recorded parents. A married-in spouse who
-  // also has no parents of their own is only a genuine root if their partner
-  // has none either â€” otherwise they belong under the partner's real family
-  // and get attached when that subtree's recursion reaches them as a spouse.
-  const roots = [];
-  const rootSeen = new Set();
-  people.forEach(person => {
-    if (rootSeen.has(person.id) || visited.has(person.id)) return;
-    if ((parentsOf.get(person.id) || []).length) return;
-    const spouse = partnerOf.get(person.id);
-    if (spouse && rootSeen.has(spouse)) return;
-    if (spouse && (parentsOf.get(spouse) || []).length) return;
-    roots.push([person.id, spouse || null]);
-    rootSeen.add(person.id);
-    if (spouse) rootSeen.add(spouse);
-  });
-  roots.sort((a, b) => a[0].localeCompare(b[0]));
-
-  // Collect each root's blood-descendant ids (following childrenOf only, not spouses'
-  // other marriages) so we can detect cross-branch marriages between two root families.
-  const bloodDescendants = (bloodId, spouseId) => {
-    const coupleKey = spouseId ? [bloodId, spouseId].sort().join('|') : bloodId;
-    const members = new Set([bloodId]);
-    if (spouseId) members.add(spouseId);
-    const kids = childrenOf.get(coupleKey) || [];
-    kids.forEach(kidId => {
-      const spouse = partnerOf.get(kidId);
-      bloodDescendants(kidId, spouse).forEach(id => members.add(id));
-    });
-    return members;
-  };
-  const rootMembers = roots.map(([bloodId, spouseId]) => bloodDescendants(bloodId, spouseId));
-
-  // Reorder roots greedily so branches linked by a cross-branch marriage sit next to
-  // each other â€” this is what keeps a grafted child's line short instead of spanning
-  // the full width of the canvas to reach a distant, unrelated-looking family group.
-      const linkCount = (i, j) => {
-    let count = 0;
-    rootMembers[i].forEach(id => {
-      if (rootMembers[j].has(partnerOf.get(id))) count += 1;
-      if (rootMembers[j].has(id)) count += 1;
-    });
-    return count;
-  };
-  const remaining = new Set(roots.map((_, idx) => idx));
-  const orderedIdx = [];
-  let current = 0;
-  remaining.delete(current);
-  orderedIdx.push(current);
-  while (remaining.size) {
-    let best = null;
-    let bestScore = -1;
-    remaining.forEach(candidate => {
-      const score = Math.max(...orderedIdx.map(placed => linkCount(placed, candidate)));
-      if (score > bestScore || (score === bestScore && (best === null || roots[candidate][0].localeCompare(roots[best][0]) < 0))) {
-        bestScore = score;
-        best = candidate;
-      }
-    });
-    remaining.delete(best);
-    orderedIdx.push(best);
-    current = best;
-  }
-
-  // Record each root's final left-to-right rank and which root every one of its
-  // blood descendants belongs to, before any positioning happens â€” positionCouple's
-  // sibling-ordering bias (above) needs this to know where a spouse's OTHER branch
-  // will eventually land, even though that branch may be positioned later or earlier.
-  orderedIdx.forEach((idx, rank) => {
-    rankOfRoot.set(idx, rank);
-    rootMembers[idx].forEach(id => personRootIndex.set(id, idx));
-  });
-
-  let currentX = MARGIN_X;
-  let previousIdx = null;
-  orderedIdx.forEach(idx => {
-    const [bloodId, spouseId] = roots[idx];
-    visited.add(bloodId);
-    if (spouseId) visited.add(spouseId);
-    const width = getSubtreeWidth(bloodId, spouseId);
-    positionCouple(bloodId, spouseId, currentX + width / 2, MARGIN_Y, idx);
-    // Branches joined by a cross-branch marriage sit noticeably closer together than
-    // wholly unrelated branches, like the reference layout keeps married-in families
-    // near the household they married into instead of spread evenly across the canvas.
-        const currentRank = orderedIdx.indexOf(idx);
-    const nextIdx = orderedIdx[currentRank + 1];
-    const nextHasPlacedLink = nextIdx !== undefined && orderedIdx
-      .slice(0, currentRank + 1)
-      .some(placedIdx => linkCount(placedIdx, nextIdx) > 0);
-    const gap = nextHasPlacedLink ? ROOT_GAP * 0.35 : ROOT_GAP;
-    currentX += width + gap;
-    previousIdx = idx;
-  });
-
-  return positions;
+  return treeComputeLayout(people, unions, parentsOf, levels);
 }
 
 function focusSearchMatch(personId) {
@@ -695,97 +298,8 @@ function renderTree() {
       ...(classicTree ? {fixed: {x: true, y: true}} : {})
     });
   });
-  const organicEdgePhysics = (edgeKind, parentIds = [], childId = null) => {
-    if (classicTree) return {};
-    const directFamily = edgeKind === 'union' || (edgeKind === 'parent' && parentIds.length > 0 && childId && (levels.get(childId) || 0) - Math.max(...parentIds.map(id => levels.get(id) || 0)) <= 1);
-    return directFamily
-      ? {length: 130, physics: true}
-      : {length: 300, physics: true};
-  };
-    // Classic renders the direct spouse rail; Organic renders the two dashed parent-to-hub rails.
-  if (classicTree) {
-    const drawnCouples = new Set();
-    unions.forEach(union => {
-      const pids = (union.partners || []).map(partner => partner.individual_id).filter(id => visible.has(id));
-      if (pids.length !== 2) return;
-      const coupleKey = [...pids].sort().join('|');
-      if (drawnCouples.has(coupleKey)) return;
-      drawnCouples.add(coupleKey);
-      edges.push(labeledEdge({from: pids[0], to: pids[1], edgeKind: 'union', label: 'Spouse', arrows: {to: {enabled: false}}, color: {color: relationshipColor, opacity: 0.9}, width: 1.8, dashes: [4, 4], smooth: {enabled: true, type: 'cubicBezier', forceDirection: 'horizontal', roundness: 0.25}, ...organicEdgePhysics('union', pids)}));
-    });
-  }
-  const parentGroups = new Map();
-  parentsOf.forEach((parentIds, childId) => {
-    const uniqueParents = [...new Set(parentIds)].filter(id => visible.has(id)).sort();
-    if (!uniqueParents.length) return;
-    const key = uniqueParents.join('|');
-    if (!parentGroups.has(key)) parentGroups.set(key, {parentIds: uniqueParents, childIds: []});
-    parentGroups.get(key).childIds.push(childId);
-  });
-    const childRelationLabel = (parentIds, childId) => {
-    const child = personById.get(childId);
-    if (!child) return '';
-    return child.gender === 'M' ? 'Son' : child.gender === 'F' ? 'Daughter' : 'Child';
-  };
-  const invisibleClassicNode = (id, position, level) => nodes.push({id, label: '', shape: 'dot', size: 1, borderWidth: 0, color: {background: 'rgba(0,0,0,0)', border: 'rgba(0,0,0,0)'}, level, ...position, physics: false, fixed: {x: true, y: true}, chosen: false});
-  const invisibleOrganicHub = (id, level) => nodes.push({id, label: '', shape: 'dot', size: 0, opacity: 0, borderWidth: 0, color: {background: 'rgba(0,0,0,0)', border: 'rgba(0,0,0,0)'}, level, physics: true, fixed: false, chosen: false});
-  parentGroups.forEach(group => {
-    const hasCouple = group.parentIds.length >= 2;
-    const sourceId = group.parentIds[0];
-    if (!classicTree) {
-      if (hasCouple) {
-        const hubId = `hub_${group.parentIds.join('_')}`;
-        invisibleOrganicHub(hubId, Math.max(...group.parentIds.map(parentId => levels.get(parentId) || 0)) + 0.5);
-        group.parentIds.forEach(parentId => edges.push(labeledEdge({from: parentId, to: hubId, edgeKind: 'marriage-hub', label: '', arrows: {to: {enabled: false}}, color: {color: themeColors.edge, opacity: 0.72}, width: 1.6, dashes: [4, 4], smooth: {enabled: false}, length: 45, springConstant: 0.18, physics: true})));
-        group.childIds.forEach(childId => edges.push(labeledEdge({from: hubId, to: childId, edgeKind: 'parent', label: childRelationLabel(group.parentIds, childId), arrows: {to: {enabled: true, scaleFactor: 0.8}}, color: {color: themeColors.edge, highlight: themeColors.edgeHighlight}, width: 2, smooth: {enabled: true, type: 'dynamic'}, length: 160, springConstant: 0.04, physics: true})));
-      } else {
-        group.childIds.forEach(childId => edges.push(labeledEdge({from: sourceId, to: childId, edgeKind: 'parent', label: childRelationLabel(group.parentIds, childId), arrows: {to: {enabled: true, scaleFactor: 0.8}}, color: {color: themeColors.edge, highlight: themeColors.edgeHighlight}, width: 2, smooth: {enabled: true, type: 'dynamic'}, ...organicEdgePhysics('parent', group.parentIds, childId)})));
-      }
-      return;
-    }
-    // Single child: connect directly, no need for a shared trunk to split.
-    if (group.childIds.length < 2 && !hasCouple) {
-      group.childIds.forEach(childId => edges.push(labeledEdge({from: sourceId, to: childId, edgeKind: 'parent', label: childRelationLabel(group.parentIds, childId), arrows: {to: {enabled: true, scaleFactor: 0.8}}, color: {color: themeColors.edge, highlight: themeColors.edgeHighlight}, width: 2, smooth: {enabled: true, type: 'cubicBezier', forceDirection: 'vertical', roundness: classicTree ? 0.35 : 0.5}})));
-      return;
-    }
-    // Whether one parent or a couple: a single trunk drops from the parent (or the
-    // couple's union point) to an invisible branch node, which then fans out to each
-    // child. This shared-trunk shape (one line splitting into several) is what gives
-    // the classic pedigree chart its T/Y-junction look, instead of independent lines
-    // radiating straight from the parent to every child.
-    const intersectionId = `union_${group.parentIds.join('_')}`;
-    const branchId = `${intersectionId}_branch`;
-    let unionPosition;
-    if (hasCouple) {
-      const coupleKey = [...group.parentIds].sort().join('|');
-      const unionId = unionOfCouple.get(coupleKey);
-      unionPosition = classicPositions?.get(unionId) || classicPositions?.get(intersectionId);
-    } else {
-      unionPosition = classicPositions?.get(sourceId);
-    }
-    // Use the most common child Y (not just the first child) as the branch row: a child
-    // who is also a spouse grafted into a different branch elsewhere sits at that other
-    // branch's row, not this family's true generational row, and must not skew the trunk.
-    const childPositions = group.childIds.map(childId => classicPositions?.get(childId)).filter(Boolean);
-    const yCounts = new Map();
-    childPositions.forEach(pos => yCounts.set(pos.y, (yCounts.get(pos.y) || 0) + 1));
-    let childLaneY = unionPosition?.y;
-    let bestCount = 0;
-    yCounts.forEach((count, y) => { if (count > bestCount) { bestCount = count; childLaneY = y; } });
-    const branchPosition = unionPosition && childLaneY !== undefined ? {x: unionPosition.x, y: (unionPosition.y + childLaneY) / 2} : {};
-    if (hasCouple) {
-      invisibleClassicNode(intersectionId, unionPosition || {}, Math.max(...group.parentIds.map(parentId => levels.get(parentId) || 0)) + 0.5);
-    }
-    invisibleClassicNode(branchId, branchPosition, Math.max(...group.childIds.map(childId => levels.get(childId) || 0)) - 0.4);
-    const trunkFrom = hasCouple ? intersectionId : sourceId;
-    edges.push({from: trunkFrom, to: branchId, edgeKind: 'parent', arrows: {to: {enabled: false}}, label: '', color: {color: themeColors.edge, opacity: 0.9}, width: 2, smooth: {enabled: true, type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.25}});
-    // Every child, including one grafted in elsewhere via marriage and sitting at a
-    // different row, still branches off the same shared trunk point â€” this keeps the
-    // single-trunk-splits-into-many look consistent no matter where the child lands.
-    group.childIds.forEach(childId => edges.push(labeledEdge({from: branchId, to: childId, edgeKind: 'parent', label: childRelationLabel(group.parentIds, childId), arrows: {to: {enabled: true, scaleFactor: 0.8}}, color: {color: themeColors.edge, highlight: themeColors.edgeHighlight}, width: 2, smooth: {enabled: true, type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.45}})));
-  });
-  
-  
+  treeBuildEdges({nodes, edges, classicTree, unions, visible, parentsOf, personById, levels, unionOfCouple, classicPositions, themeColors, relationshipColor, labeledEdge});
+
   const container = $('treeCanvas');
   container.innerHTML = '';
 
@@ -890,173 +404,10 @@ function renderTree() {
   }
   container.appendChild(svgOverlay);
   const syncConnectorPositions = () => {};
-    const animateConnections = () => {
-    if (!state.svgOverlay || state.edgeStyle !== 'moving-dots') return;
-    state.svgOverlay.querySelectorAll('path.family-link, circle.link-dot, text.connection-label, animateMotion').forEach(el => el.remove());
-    state.connectionMask?.remove();
-    state.connectionAnimationLayer?.remove();
-    
-    const positions = network.getPositions();
-    const zoom = network.getScale();
-    const toCanvas = pos => network.canvasToDOM(pos);
-    // Keep the overlay above the canvas for animation, but exclude every node card from it.
-    const maskId = `connection-mask-${Date.now()}`;
-    const mask = document.createElementNS('http://www.w3.org/2000/svg', 'mask');
-    mask.setAttribute('id', maskId);
-    mask.setAttribute('maskUnits', 'userSpaceOnUse');
-    const maskBackground = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    maskBackground.setAttribute('width', '100%');
-    maskBackground.setAttribute('height', '100%');
-    maskBackground.setAttribute('fill', 'white');
-    mask.appendChild(maskBackground);
-    Object.keys(positions).forEach(nodeId => {
-      const bounds = network.getBoundingBox(nodeId);
-      if (!bounds) return;
-      const topLeft = toCanvas({x: bounds.left, y: bounds.top});
-      const bottomRight = toCanvas({x: bounds.right, y: bounds.bottom});
-      const shield = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      shield.setAttribute('x', String(topLeft.x));
-      shield.setAttribute('y', String(topLeft.y));
-      shield.setAttribute('width', String(Math.max(0, bottomRight.x - topLeft.x)));
-      shield.setAttribute('height', String(Math.max(0, bottomRight.y - topLeft.y)));
-      shield.setAttribute('fill', 'black');
-      mask.appendChild(shield);
-    });
-    defs.appendChild(mask);
-    const animationLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    animationLayer.setAttribute('mask', `url(#${maskId})`);
-    state.connectionMask = mask;
-    state.connectionAnimationLayer = animationLayer;
-    state.svgOverlay.appendChild(animationLayer);
-    // The overlay uses screen coordinates, so scale the dot with the network zoom.
-    const dotRadius = 5.5 * zoom;
-    const endpointGap = 2 * zoom;
-    edges.filter(edge => edge.edgeKind === 'parent').forEach((edge, idx) => {
-      const fromPos = positions[edge.from];
-      const toPos = positions[edge.to];
-      if (!fromPos || !toPos) return;
-      
-      const renderedEdge = network.body.edges[edge.id];
-      if (!renderedEdge?.edgeType?.fromPoint || !renderedEdge.edgeType.toPoint) return;
-      const fromScreen = toCanvas(renderedEdge.edgeType.fromPoint);
-      const toScreen_pos = toCanvas(renderedEdge.edgeType.toPoint);
-      const via = renderedEdge.edgeType.getViaNode();
-      const viaScreen = via?.[0]?.x !== undefined && via?.[1]?.x !== undefined
-        ? [toCanvas(via[0]), toCanvas(via[1])] : null;
-      const destinationBounds = network.getBoundingBox(edge.to);
-      const destinationCenter = toCanvas(positions[edge.to]);
-      const destinationBottomRight = toCanvas({x: destinationBounds.right, y: destinationBounds.bottom});
-      const tangentStart = viaScreen?.[1] || fromScreen;
-      const tangent = {x: destinationCenter.x - tangentStart.x, y: destinationCenter.y - tangentStart.y};
-      const tangentLength = Math.hypot(tangent.x, tangent.y) || 1;
-      const direction = {x: tangent.x / tangentLength, y: tangent.y / tangentLength};
-      const boundaryDistance = Math.min(
-        (destinationBottomRight.x - destinationCenter.x) / Math.abs(direction.x || Infinity),
-        (destinationBottomRight.y - destinationCenter.y) / Math.abs(direction.y || Infinity)
-      );
-      const nodeBoundary = {
-        x: destinationCenter.x - direction.x * Math.max(0, boundaryDistance - dotRadius - endpointGap),
-        y: destinationCenter.y - direction.y * Math.max(0, boundaryDistance - dotRadius - endpointGap)
-      };
-      const pathData = viaScreen
-        ? `M${fromScreen.x} ${fromScreen.y} C${viaScreen[0].x} ${viaScreen[0].y},${viaScreen[1].x} ${viaScreen[1].y},${nodeBoundary.x} ${nodeBoundary.y}`
-        : `M${fromScreen.x} ${fromScreen.y} L${nodeBoundary.x} ${nodeBoundary.y}`;
-      
-      const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      dot.setAttribute('class', 'link-dot');
-      dot.setAttribute('r', String(dotRadius));
-      dot.setAttribute('id', `dot-${idx}`);
-      dot.dataset.edgeId = edge.id;
-      dot.style.opacity = state.lineageHover?.vividEdges.has(edge.id) ? '1' : state.lineageHover ? '0.12' : '';
-
-      const destination = personById.get(edge.to);
-      const destinationColor = destination?.gender === 'M'
-        ? activeTheme.nodeBorderMale
-        : destination?.gender === 'F' ? activeTheme.nodeBorderFemale : overlayColors.dot;
-      const colorAnimation = document.createElementNS('http://www.w3.org/2000/svg', 'animate');
-      colorAnimation.setAttribute('attributeName', 'fill');
-      colorAnimation.setAttribute('dur', '2s');
-      colorAnimation.setAttribute('values', `${overlayColors.dot};${destinationColor}`);
-      colorAnimation.setAttribute('repeatCount', 'indefinite');
-      colorAnimation.setAttribute('calcMode', 'linear');
-
-      const opacityAnimation = document.createElementNS('http://www.w3.org/2000/svg', 'animate');
-      opacityAnimation.setAttribute('attributeName', 'opacity');
-      opacityAnimation.setAttribute('dur', '2s');
-      const initialDotOpacity = state.lineageHover
-        ? state.lineageHover.vividEdges.has(edge.id) ? 1 : 0.12
-        : 1;
-      opacityAnimation.setAttribute('values', `${initialDotOpacity};${initialDotOpacity};0`);
-      opacityAnimation.setAttribute('keyTimes', '0;0.92;1');
-      opacityAnimation.setAttribute('repeatCount', 'indefinite');
-      opacityAnimation.setAttribute('calcMode', 'linear');
-
-      const animate = document.createElementNS('http://www.w3.org/2000/svg', 'animateMotion');
-      animate.setAttribute('dur', '2s');
-      animate.setAttribute('repeatCount', 'indefinite');
-      animate.setAttribute('path', pathData);
-      dot.appendChild(colorAnimation);
-      dot.appendChild(opacityAnimation);
-      dot.appendChild(animate);
-      animationLayer.appendChild(dot);
-    });
-  };
+    const animateConnections = () => treeAnimateConnections({state, network, edges, personById, activeTheme, overlayColors, defs});
 
 
-      network.on('stabilizationIterationsDone', () => {
-    if (!classicTree) network.setOptions({physics: {enabled: false}});
-    syncConnectorPositions();
-    animateConnections();
-  });
-  network.on('dragStart', () => {
-    if (classicTree) return;
-    network.setOptions({physics: {enabled: true}});
-  });
-  network.on('dragEnd', () => {
-    if (classicTree) return;
-    setTimeout(() => network?.setOptions({physics: {enabled: false}}), 400);
-  });
-  network.on('hoverNode', ({node}) => {
-    if (personById.has(node)) {
-      lastPointerNodeId = node;
-      applyLineageHover(node, people, unions, parentsOf);
-    }
-  });
-  network.on('blurNode', () => {
-    if (!isShiftPressed) clearLineageHover();
-  });
-  network.on('mousemove', ({pointer}) => {
-    const nodeId = network.getNodeAt(pointer.canvas);
-    if (personById.has(nodeId)) {
-      lastPointerNodeId = nodeId;
-      applyLineageHover(nodeId, people, unions, parentsOf);
-    } else if (!isShiftPressed && state.lineageHover) clearLineageHover();
-  });
-  network.on('afterDrawing', () => animateConnections());
-  network.on('zoom', () => animateConnections());
-  network.on('dragEnd', () => animateConnections());
-  network.on('dragEnd', async event => {
-    const positions = {};
-    (event.nodes || []).forEach(id => {
-      if (personById.has(id)) {
-        const point = network.getPositions([id])[id];
-        positions[id] = {x: Math.round(point.x), y: Math.round(point.y)};
-      }
-    });
-    syncConnectorPositions();
-    animateConnections();
-    if (!Object.keys(positions).length) return;
-    try {
-      await api('/api/family/positions', {method: 'PATCH', body: JSON.stringify({positions})});
-      Object.entries(positions).forEach(([id, position]) => { const person = personById.get(id); person.position = position; });
-    } catch (error) {
-      notice(`Could not save layout: ${error.message}`);
-    }
-  });
-  network.on('doubleClick', event => {
-    const personId = (event.nodes || []).find(id => personById.has(id));
-    if (personId) openPanel(personById.get(personId));
-  });
+  treeBindInteractions({network, classicTree, state, personById, people, unions, parentsOf, query, matchedIds, api, notice, openPanel, applyLineageHover, clearLineageHover, focusSearchMatch, animateConnections, syncConnectorPositions, isShiftPressed: () => isShiftPressed});
   if (query && matchedIds.size) {
     network.once('afterDrawing', () => {
       const matchedId = [...matchedIds][0];
@@ -1070,24 +421,16 @@ function renderTree() {
 
 // ---------- Side panel: view / add / edit ----------
 function field(label, name, value = '', type = 'text', wide = false, placeholder = '') {
-  return `<label class="${wide ? 'wide' : ''}">${label}<input name="${name}" value="${escapeHtml(value)}" type="${type}" placeholder="${escapeHtml(placeholder)}"></label>`;
+  return panelField(label, name, value, type, wide, placeholder);
 }
 
 // Relationship phrasing adapts to the selected gender, e.g. "Son of" vs "Daughter of".
 function relationshipLabels(gender) {
-  if (gender === 'M') return {child_of: 'Son of', parent_of: 'Father of', spouse_of: 'Husband of'};
-  if (gender === 'F') return {child_of: 'Daughter of', parent_of: 'Mother of', spouse_of: 'Wife of'};
-  return {child_of: 'Child of', parent_of: 'Parent of', spouse_of: 'Spouse of'};
+  return panelRelationshipLabels(gender);
 }
 
 function relationshipOptionsHtml(gender, isEdit) {
-  const labels = relationshipLabels(gender);
-  const keepOption = isEdit ? '<option value="keep">No change</option>' : '';
-  return `${keepOption}
-    <option value="new_root">No known parents / start a branch</option>
-    <option value="child_of">${labels.child_of} \u2026 (select the parents below)</option>
-    <option value="parent_of">${labels.parent_of} \u2026 (select a child below)</option>
-    <option value="spouse_of">${labels.spouse_of} \u2026 (select a spouse below)</option>`;
+  return panelRelationshipOptionsHtml(gender, isEdit);
 }
 
 function relativeOptionsHtml(excludeId) {
@@ -1109,337 +452,74 @@ function parentGroupOptionsHtml(selectedIds = []) {
 }
 
 function relationshipState(person) {
-  const parents = new Set();
-  const spouses = new Set();
-  for (const union of state.family.unions || []) {
-    const partnerIds = (union.partners || []).map(partner => partner.individual_id);
-    if (partnerIds.includes(person.id)) partnerIds.filter(id => id !== person.id).forEach(id => spouses.add(id));
-    if ((union.children || []).some(child => child.individual_id === person.id)) partnerIds.forEach(id => parents.add(id));
-  }
-  return {parents: [...parents], spouses: [...spouses]};
+  return panelRelationshipState(person);
 }
 
 function openPanel(person = null) {
-  state.activePersonId = person?.id || null;
-  const birth = person?.vital_events?.birth || {};
-  const death = person?.vital_events?.death || {};
-  const culture = person?.cultural_metadata || {};
-  const birthDateValue = birth.date && birth.date !== 'unknown' && birth.date !== 'private' ? birth.date : '';
-  const migrationItems = (person?.migration_history || [])
-    .map(entry => `<li>${escapeHtml(entry.year)} &middot; ${escapeHtml(entry.from)} &rarr; ${escapeHtml(entry.to)}${entry.reason ? ` (${escapeHtml(entry.reason)})` : ''}</li>`)
-    .join('');
-  const existingTags = (person?.tags || []).map(tag => `<span class="tag-badge">${escapeHtml(tag)}</span>`).join('');
-  const contextBlock = person
-    ? `${person.is_private ? '<p class="privacy-note">ðŸ”’ Marked private â€” sensitive details are hidden from non-admin members.</p>' : ''}
-       ${existingTags ? `<div class="tag-badges">${existingTags}</div>` : ''}
-       <div class="detail-grid">
-         <div class="detail-card"><strong>Born</strong>${escapeHtml(birth.date || 'Unknown')}<br>${escapeHtml(birth.location || '')}</div>
-         <div class="detail-card"><strong>Died</strong>${escapeHtml(death.date || 'â€”')}<br>${escapeHtml(death.location || '')}</div>
-         <div class="detail-card"><strong>Roots</strong>${escapeHtml(culture.native_village || 'Not recorded')}<br>${escapeHtml(culture.gotra_clan || '')}</div>
-       </div>
-       ${migrationItems ? `<h3>Migration</h3><ul>${migrationItems}</ul>` : ''}`
-    : '';
-  const gender = person?.gender || 'U';
-  const relations = person ? relationshipState(person) : {parents: [], spouses: []};
-  const storedRelations = person?.relationships || {};
-  const parentIds = storedRelations.parents?.length ? storedRelations.parents : relations.parents;
-  const spouseIds = storedRelations.spouses?.length ? storedRelations.spouses : relations.spouses;
-  const relativeOptions = relativeOptionsHtml(person?.id);
-  const relationshipFields = `
-    <label class="wide">Relationship${person ? ' (editable anytime)' : ' *'}
-      <select name="relationship" id="relationship">${relationshipOptionsHtml(gender, Boolean(person))}</select>
-    </label>
-    <label class="wide" id="relativeField" hidden><span id="relativeFieldLabel">Link to</span><select name="relative_id" id="relativeSelect"><option value="">Choose a family member</option>${relativeOptions}</select></label>
-    <label class="wide" id="coParentField" hidden>Other parent (optional, links the pair together as a couple)<select name="co_parent_id" id="coParentSelect"><option value="">None / unknown</option>${relativeOptions}</select></label>
-    <label class="wide" id="parentGroupField" hidden>Paired parents<select id="parentGroupSelect" name="parent_group" multiple size="3">${parentGroupOptionsHtml(parentIds)}</select></label>
-    <p class="wide relationship-summary">Parents: ${escapeHtml(parentIds.map(id => state.family.individuals.find(candidate => candidate.id === id)?.first_name || id).join('-') || 'None')} Â· Spouses: ${escapeHtml(spouseIds.map(id => state.family.individuals.find(candidate => candidate.id === id)?.first_name || id).join(', ') || 'None')}</p>`;
-  const deleteButton = person ? '<button type="button" class="danger" id="deleteButton" aria-label="Delete person" title="Delete person"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14M10 11v5m4-5v5"/></svg></button>' : '';
-  const reviewNote = state.user.role === 'admin'
-    ? 'As an administrator, your changes apply to the tree immediately.'
-    : 'Changes are reviewed by a family administrator before they update the tree.';
-
-  $('sidePanelContent').innerHTML = `
-    <p class="eyebrow">${person ? 'EDIT PROPOSAL' : 'NEW PERSON PROPOSAL'}</p>
-    <h2>${person ? escapeHtml(displayName(person)) : 'Add a family member'}</h2>
-    <p>${reviewNote}</p>
-    ${contextBlock}
-    <form id="personForm" class="form-grid">
-      ${field('First name *', 'first_name', person?.first_name || '')}
-      ${field('Middle name', 'middle_name', person?.middle_name || '')}
-      ${field('Last name *', 'last_name', person?.last_name || '')}
-      <label>Gender *
-        <select name="gender" id="genderSelect">
-          <option value="M" ${person?.gender === 'M' ? 'selected' : ''}>Male</option>
-          <option value="F" ${person?.gender === 'F' ? 'selected' : ''}>Female</option>
-          <option value="NB" ${person?.gender === 'NB' ? 'selected' : ''}>Non-binary</option>
-          <option value="U" ${person?.gender === 'U' || !person ? 'selected' : ''}>Unknown / prefer not to say</option>
-        </select>
-      </label>
-      ${field('Birth date', 'birth_date', birthDateValue, 'text', false, 'e.g. 1985 or 1985-04-12 (leave blank if unknown)')}
-      ${field('Birth location', 'birth_location', birth.location || '')}
-      ${relationshipFields}
-      ${field('Death date', 'death_date', death.date || '')}
-      ${field('Death location', 'death_location', death.location || '')}
-      ${field('Native village', 'native_village', culture.native_village || '')}
-      ${field('Gotra / clan', 'gotra_clan', culture.gotra_clan || '')}
-      ${field('Community', 'community_caste', culture.community_caste || '')}
-      ${field('Generation', 'generation', person?.generation || '')}
-      ${field('Tags', 'tags', (person?.tags || []).join(', '), 'text', true, 'e.g. Verified, Needs research')}
-      <label class="wide privacy-note">
-        <input type="checkbox" name="is_private" ${person?.is_private ? 'checked' : ''} style="width:auto">
-        Mark this person as private (hides sensitive details from non-admin members)
-      </label>
-      <label class="wide">Biographical notes<textarea name="biographical_notes">${escapeHtml(person?.biographical_notes || '')}</textarea></label>
-      <div class="wide panel-actions flex flex-row items-center justify-between space-x-2 w-full mt-4">
-        <button type="submit" aria-label="${state.user.role === 'admin' ? 'Save changes' : 'Submit for review'}" title="${state.user.role === 'admin' ? 'Save changes' : 'Submit for review'}"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg></button>
-        ${deleteButton}
-        <button type="button" class="secondary" id="cancelForm" aria-label="Cancel" title="Cancel"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
-      </div>
-      <p id="formError" class="error wide" hidden></p>
-    </form>
-  `;
-  const relationship = $('relationship');
-  const relativeLabels = {child_of: 'Parent', parent_of: 'Child', spouse_of: 'Spouse'};
-  const updateRelativeVisibility = () => {
-    const isLinked = ['child_of', 'parent_of', 'spouse_of'].includes(relationship.value);
-    $('relativeField').hidden = !isLinked;
-    $('relativeFieldLabel').textContent = isLinked ? relativeLabels[relationship.value] : 'Link to';
-    // A second parent only makes sense when declaring who this person's parent(s) are.
-    $('coParentField').hidden = relationship.value !== 'child_of';
-    $('parentGroupField').hidden = relationship.value !== 'child_of';
-    if (relationship.value === 'child_of') {
-      $('relativeField').hidden = true;
-      $('coParentField').hidden = true;
-    }
-  };
-  relationship.onchange = updateRelativeVisibility;
-  $('parentGroupSelect').onchange = event => {
-    const selected = [...event.target.selectedOptions][0]?.value?.split(',') || [];
-    if (selected.length === 2) {
-      $('relativeSelect').value = selected[0];
-      $('coParentSelect').value = selected[1];
-    }
-  };
-  updateRelativeVisibility();
-  // Keep the relationship wording (Son of / Daughter of / ...) in sync with the chosen gender.
-  $('genderSelect').onchange = event => {
-    const current = relationship.value;
-    relationship.innerHTML = relationshipOptionsHtml(event.target.value, Boolean(person));
-    relationship.value = current;
-  };
-  $('cancelForm').onclick = () => hide('sidePanel');
-  $('personForm').onsubmit = event => submitProposal(event, person);
-  if (person) $('deleteButton').onclick = () => submitDeleteProposal(person);
-  renderTree();
-  show('sidePanel');
+  return panelOpenPanel(person);
 }
 
 async function submitProposal(event, person) {
-  event.preventDefault();
-  const form = new FormData(event.target);
-  const data = Object.fromEntries(form.entries());
-  data.is_private = form.has('is_private');
-  try {
-    const result = await api('/api/proposals', {method: 'POST', body: JSON.stringify({kind: person ? 'edit' : 'add', target_id: person?.id, person: data})});
-    hide('sidePanel');
-    await loadFamily();
-    if (result.status === 'approved') {
-      notice(person ? 'Saved. The tree has been updated.' : `Added "${result.person_id}" to the tree.`);
-    } else {
-      notice(person ? 'Your edit was submitted for administrator review.' : `Your addition was submitted for review as "${result.person_id}".`);
-    }
-  } catch (error) {
-    const target = $('formError');
-    target.textContent = error.message;
-    target.hidden = false;
-  }
+  return panelSubmitProposal(event, person);
 }
 
 async function submitDeleteProposal(person) {
-  const isAdmin = state.user.role === 'admin';
-  const confirmMessage = isAdmin
-    ? `Delete ${displayName(person)}? This applies immediately and cannot be undone.`
-    : `Submit a proposal to delete ${displayName(person)}? An administrator must approve it.`;
-  if (!confirm(confirmMessage)) return;
-  try {
-    const result = await api('/api/proposals', {method: 'POST', body: JSON.stringify({kind: 'delete', target_id: person.id})});
-    hide('sidePanel');
-    await loadFamily();
-    notice(result.status === 'approved' ? `${displayName(person)} was deleted.` : 'Your deletion request was submitted for administrator review.');
-  } catch (error) {
-    notice(error.message);
-  }
+  return panelSubmitDeleteProposal(person);
 }
-
 // ---------- Admin: review proposals ----------
 function describeProposal(proposal) {
-  if (proposal.kind === 'delete') return `delete Â· ${escapeHtml(proposal.target_id)}`;
-  return `${escapeHtml(proposal.kind)} Â· ${escapeHtml(proposal.target_id || proposal.payload.id)}`;
+  return adminDescribeProposalView(proposal);
 }
 
 async function openReviews() {
-  try {
-    const data = await api('/api/proposals');
-    const content = data.proposals.length
-      ? data.proposals
-          .map(
-            proposal => `
-        <article class="proposal">
-          <strong>${describeProposal(proposal)}</strong>
-          <p>Submitted by ${escapeHtml(proposal.proposer)}.</p>
-          <pre>${escapeHtml(JSON.stringify(proposal.payload, null, 2))}</pre>
-          <button data-review="${proposal.id}:approve">Approve</button>
-          <button class="danger" data-review="${proposal.id}:reject">Reject</button>
-        </article>`
-          )
-          .join('')
-      : '<p>No pending proposals.</p>';
-    $('reviewContent').innerHTML = `<p class="eyebrow">ADMINISTRATION</p><h2>Pending proposals</h2>${content}`;
-    document.querySelectorAll('[data-review]').forEach(button => (button.onclick = () => review(button.dataset.review)));
-    show('reviewSheet');
-  } catch (error) {
-    notice(error.message);
-  }
+  return adminOpenReviews();
 }
 
 async function review(value) {
-  const [id, action] = value.split(':');
-  try {
-    await api(`/api/proposals/${id}/${action}`, {method: 'POST', body: JSON.stringify({})});
-    await loadFamily();
-    await openReviews();
-    notice(`Proposal ${action}d.`);
-  } catch (error) {
-    notice(error.message);
-  }
+  return adminReview(value);
 }
 
-// ---------- Admin: user management ----------
 function userField(label, name, value = '', type = 'text', placeholder = '') {
-  return `<label>${label}<input name="${name}" value="${escapeHtml(value)}" type="${type}" placeholder="${escapeHtml(placeholder)}"></label>`;
+  return adminUserFieldView(label, name, value, type, placeholder);
 }
 
 async function openUsers() {
-  try {
-    const data = await api('/api/admin/users');
-    const rows = data.users
-      .map(
-        user => `
-      <article class="proposal">
-        <strong>${escapeHtml(user.display_name)}</strong> <span class="user-role">${escapeHtml(user.role)}</span>
-        <p>Username: ${escapeHtml(user.username)}</p>
-        <div class="panel-actions">
-          <button data-role-toggle="${escapeHtml(user.username)}" class="secondary">${user.role === 'admin' ? 'Make member' : 'Make admin'}</button>
-          <button data-reset-password="${escapeHtml(user.username)}" class="secondary">Reset password</button>
-          ${user.username !== state.user.username ? `<button data-delete-user="${escapeHtml(user.username)}" class="danger">Delete</button>` : ''}
-        </div>
-      </article>`
-      )
-      .join('');
-    $('reviewContent').innerHTML = `
-      <p class="eyebrow">ADMINISTRATION</p>
-      <h2>Family accounts</h2>
-      <form id="newUserForm" class="form-grid">
-        ${userField('Display name', 'display_name')}
-        ${userField('Username', 'username', '', 'text', 'lowercase, letters/digits')}
-        ${userField('Temporary password', 'password', '', 'password', 'at least 12 characters')}
-        <label>Role<select name="role"><option value="member">Member</option><option value="admin">Admin</option></select></label>
-        <button type="submit">Create account</button>
-        <p id="userFormError" class="error" hidden></p>
-      </form>
-      <h3>Existing accounts</h3>
-      ${rows || '<p>No accounts yet.</p>'}
-    `;
-    $('newUserForm').onsubmit = submitNewUser;
-    document.querySelectorAll('[data-role-toggle]').forEach(button => (button.onclick = () => toggleRole(button.dataset.roleToggle)));
-    document.querySelectorAll('[data-reset-password]').forEach(button => (button.onclick = () => resetPassword(button.dataset.resetPassword)));
-    document.querySelectorAll('[data-delete-user]').forEach(button => (button.onclick = () => deleteUserAccount(button.dataset.deleteUser)));
-    show('reviewSheet');
-  } catch (error) {
-    notice(error.message);
-  }
+  return adminOpenUsers();
 }
 
 async function submitNewUser(event) {
-  event.preventDefault();
-  const form = new FormData(event.target);
-  const data = Object.fromEntries(form.entries());
-  try {
-    await api('/api/admin/users', {method: 'POST', body: JSON.stringify(data)});
-    await openUsers();
-    notice('Account created.');
-  } catch (error) {
-    const target = $('userFormError');
-    target.textContent = error.message;
-    target.hidden = false;
-  }
+  return adminSubmitNewUser(event);
 }
 
 async function toggleRole(username) {
-  const users = (await api('/api/admin/users')).users;
-  const current = users.find(user => user.username === username);
-  const role = current.role === 'admin' ? 'member' : 'admin';
-  try {
-    await api(`/api/admin/users/${encodeURIComponent(username)}`, {method: 'PATCH', body: JSON.stringify({role})});
-    await openUsers();
-    notice(`${username} is now a ${role}.`);
-  } catch (error) {
-    notice(error.message);
-  }
+  return adminToggleRole(username);
 }
 
 async function resetPassword(username) {
-  const password = prompt(`Enter a new password for ${username} (at least 12 characters):`);
-  if (!password) return;
-  try {
-    await api(`/api/admin/users/${encodeURIComponent(username)}`, {method: 'PATCH', body: JSON.stringify({password})});
-    notice(`Password updated for ${username}.`);
-  } catch (error) {
-    notice(error.message);
-  }
+  return adminResetPassword(username);
 }
 
 async function deleteUserAccount(username) {
-  if (!confirm(`Delete the account for ${username}? This cannot be undone.`)) return;
-  try {
-    await api(`/api/admin/users/${encodeURIComponent(username)}`, {method: 'DELETE'});
-    await openUsers();
-    notice(`${username} was deleted.`);
-  } catch (error) {
-    notice(error.message);
-  }
+  return adminDeleteUserAccount(username);
 }
+
 
 // vis-network owns node dragging, canvas panning, and zooming.
 function downloadBlob(content, filename, type) {
-  const url = URL.createObjectURL(new Blob([content], {type}));
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 0);
+  return exportDownloadBlob(content, filename, type);
 }
 
 function closeExportMenu() {
-  $('exportDropdownMenu').classList.add('hidden');
-  $('exportDropdownBtn').setAttribute('aria-expanded', 'false');
+  return exportCloseMenu();
 }
 
 function exportBounds() {
-  const positions = network.getPositions();
-  const nodes = networkNodes.get();
-  const points = nodes.map(node => positions[node.id]).filter(Boolean);
-  if (!points.length) return null;
-  const halfWidth = 100;
-  const halfHeight = 38;
-  const padding = 48;
-  const minX = Math.floor(Math.min(...points.map(point => point.x - halfWidth)) - padding);
-  const minY = Math.floor(Math.min(...points.map(point => point.y - halfHeight)) - padding);
-  const maxX = Math.ceil(Math.max(...points.map(point => point.x + halfWidth)) + padding);
-  const maxY = Math.ceil(Math.max(...points.map(point => point.y + halfHeight)) + padding);
-  return {positions, nodes, edges: networkEdges?.get() || [], minX, minY, width: maxX - minX, height: maxY - minY};
+  const bounds = exportBoundsForCompatibility(network, networkNodes);
+  return bounds ? {...bounds, edges: networkEdges?.get() || []} : null;
+}
+
+function exportBoundsForCompatibility(activeNetwork, nodesData) {
+  return exportCalculateBounds(activeNetwork, nodesData);
 }
 
 function triggerSvgExport() {
@@ -1638,14 +718,7 @@ function closePopoverOnOutsideClick(event) {
 }
 
 function passwordRequirementState(password, confirmation) {
-  return {
-    length: password.length >= 12,
-    uppercase: /[A-Z]/.test(password),
-    lowercase: /[a-z]/.test(password),
-    number: /\d/.test(password),
-    special: /[^A-Za-z0-9]/.test(password),
-    match: password.length > 0 && password === confirmation,
-  };
+  return accountPasswordRequirementState(password, confirmation);
 }
 
 function updatePasswordRequirements() {
@@ -1656,7 +729,7 @@ function updatePasswordRequirements() {
     const item = document.querySelector(`[data-password-requirement="${name}"]`);
     if (!item) return;
     item.classList.toggle('met', met);
-    item.querySelector('span').textContent = met ? '✓' : '○';
+    item.querySelector('span').textContent = met ? 'âœ“' : 'â—‹';
   });
   return Object.values(requirements).every(Boolean);
 }
@@ -1706,17 +779,9 @@ function handlePopoverAction(action) {
 
 function initializeAvatarInitials() {
   if (!state.user) return;
-  const fullName = state.user.display_name || state.user.username || '';
-  const nameParts = fullName.trim().split(/\s+/).filter(Boolean);
-  let avatarInitials = '?';
+    const fullName = state.user.display_name || state.user.username || '';
+  const avatarInitials = accountInitials(state.user.display_name, state.user.username);
 
-  if (nameParts.length === 0) {
-    avatarInitials = '?';
-  } else if (nameParts.length === 1) {
-    avatarInitials = nameParts[0][0].toUpperCase();
-  } else {
-    avatarInitials = (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase();
-  }
 
   const initialsTargets = ['avatarInitialsDisplay', 'popoverAvatarInitials', 'modalAvatarInitials'];
   initialsTargets.forEach(id => {
@@ -1749,18 +814,7 @@ function handleAvatarUpload(event) {
 }
 
 function applySavedAvatarData(dataString) {
-  const imageTargets = ['avatarImageDisplay', 'popoverAvatarImage', 'modalAvatarImage'];
-  imageTargets.forEach(id => {
-    const image = document.getElementById(id);
-    if (image) {
-      image.src = dataString;
-      image.hidden = false;
-    }
-  });
-  ['avatarInitialsDisplay', 'popoverAvatarInitials', 'modalAvatarInitials'].forEach(id => {
-    const initials = document.getElementById(id);
-    if (initials) initials.hidden = true;
-  });
+    accountApplyAvatar(dataString);
 }
 
 
@@ -1857,3 +911,11 @@ if (backdrop) {
   backdrop.onclick = () => OVERLAY_IDS.forEach(hide);
 }
 boot();
+
+
+
+
+
+
+
+

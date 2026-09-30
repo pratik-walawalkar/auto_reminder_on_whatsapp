@@ -10,17 +10,24 @@ The application must be bound to a Tailnet IP or localhost, not a public interfa
 
 | Path | Responsibility |
 | --- | --- |
-| `server.py` | Flask routes, authentication, proposals, approval, user CLI, and app startup. |
-| `data_store.py` | YAML loading, relationship validation, and atomic ledger writes. |
+| `server.py` | Compatibility facade, Flask app creation, dependency wiring, and legacy exports. |
+| `cli/` | Server argument parsing, database initialization, user creation, ingest, backup, and password utility commands. |
+| `web/` | Web route groups: pages, authentication, family data, proposals, exports, profile security, and administration. |
+| `infrastructure/` | SQLite access, security decorators/audit helpers, and response serializers. |
+| `data_store.py` | Compatibility facade for YAML loading, validation, relationship operations, and atomic ledger writes. |
+| `domain/` | Pure family validation, payload normalization, proposal/user rules, ID generation, and graph mutations. The `compat/` package contains legacy module facades for older import paths. |
 | `family.yaml` | Canonical versioned genealogy ledger. |
 | `family_vault.db` | Local operational database; never commit plaintext. |
-| `ingest.py` | Structured CLI validation/import tool; also exposes `export-gedcom`. |
-| `backup.py` | Encrypted SQLite snapshot, restore, verification, and Git synchronization CLI. |
-| `gedcom.py` | Standalone GEDCOM 5.5.1 exporter (no Gramps dependency) used by `ingest.py` and the admin export route. |
-| `templates/`, `static/` | Local-only responsive web client (animated knowledge-graph tree, light/dark theme) and help view. Toolbar styling is isolated in `static/app.css` under `--tb-*` tokens and semantic classes; legacy canvas variables remain unchanged. Classic Tree layout reserves each couple's full spouse footprint and anchors the blood relation at the slot's left edge so sibling cards cannot overlap a spouse. |
+| `ingest.py` | Root CLI entrypoint for validation/import and `export-gedcom`; implementation is in `cli/ingest_cli.py`. |
+| `adapters/` | Backup crypto/SQLite/manifest/Git adapters and the GEDCOM exporter. Legacy adapter names are exposed through `compat/`. |
+| `cli/` | Server, ingest, backup, password-reset, and restore command implementations. Root CLI names remain compatibility facades. |
+| `web/` | Flask route groups for pages, authentication, family data, proposals, exports, profile security, and administration. Legacy route module names are exposed through `compat/`. |
+| `backup.py` | Compatibility facade plus encrypted snapshot, restore, verification, and Git orchestration. |
+| `gedcom.py`, `gedcom_adapter.py` | Compatibility facade and standalone GEDCOM 5.5.1 exporter (no Gramps dependency). |
+| `templates/`, `static/` | Local-only responsive web client. `static/app.js` remains the compatibility entrypoint while `static/js/` contains core, tree data/layout/edges/animation/lineage/interactions/lifecycle, panel, admin, export, and account modules loaded in dependency order. |
 | `docs/USER_GUIDE.md` | Browser-accessible, non-technical user guide. |
 | `REQUIREMENTS_AND_USE_CASES.md` | Living requirements and use-case register; update with every feature. |
-| `tests/` | Isolated data, API, help, backup, recovery, and GEDCOM export tests. |
+| `tests/` | Isolated data, API, help, backup, recovery, GEDCOM export, and compatibility tests. |
 
 ## Setup
 
@@ -88,7 +95,7 @@ All routes require `@admin_required` and `@csrf_required`. Safeguards enforced s
 - An administrator cannot delete their own account (`DELETE` on `actor()`).
 - Deleting a user with pending proposals is rejected until those proposals are approved or rejected, so proposal history stays attributable.
 
-The frontend's **Manage users** panel (`static/app.js:openUsers`) is the only place these endpoints are called from; there is still no self-registration route.
+The frontend's **Manage users** panel (`static/js/admin-controller.js:adminOpenUsers`, exposed through the `openUsers` compatibility wrapper in `static/app.js`) is the only place these endpoints are called from; there is still no self-registration route.
 
 Signed-in users change their own password through `PATCH /api/profile/password` with `current_password` and `password` fields. The endpoint requires authentication and CSRF validation, verifies the current hash before changing it, records `password_changed` in the audit log, and requires at least 12 characters plus uppercase, lowercase, number, and special character. The profile modal exposes the same policy through realtime indicators in `updatePasswordRequirements()`; administrator resets remain separate and do not require the old password.
 
@@ -127,7 +134,7 @@ The resulting file imports into Gramps, Ancestry, MyHeritage, or any other GEDCO
 
 ## Frontend: knowledge-graph tree and theming
 
-`static/app.js` positions each person absolutely inside `#treeCanvas` (row = generation, column = alphabetical within generation) and draws curved, gradient-stroked SVG edges between parents and children in `familyLinks`/`renderTree`. Node color rings are driven by CSS custom properties keyed off gender (`.m`/`.f`/`.nb`/`.u` classes map to `--male`/`--female`/`--nb`/`--unknown` tokens). Pan/zoom (`setPanZoom`) skips drag-start when the pointerdown originates on a `.person-node`, so clicks still open the side panel.
+`static/app.js` coordinates rendering through `static/js/tree-data.js`, `tree-layout.js`, `tree-edges.js`, and `tree-animation.js`; interaction handlers live in `tree-lineage.js` and `tree-interactions.js`. The renderer positions each person inside `#treeCanvas` and preserves classic union hubs, organic physics, moving-dot overlays, and lineage opacity behavior. Panel and administration orchestration live in `panel-controller.js` and `admin-controller.js`, with compatibility wrappers retained in `app.js`. Node color rings are driven by CSS custom properties keyed off gender (`.m`/`.f`/`.nb`/`.u` classes map to `--male`/`--female`/`--nb`/`--unknown` tokens).
 
 Theme: `data-theme="dark"|"light"` on `<html>` selects the token block in `static/app.css`; `applyTheme`/`toggleTheme` in `app.js` persist the choice to `localStorage` (`familyVaultTheme`) and default to the OS preference via `prefers-color-scheme` on first load. An inline blocking script in `templates/shell.html` sets the attribute before first paint to avoid a flash of the wrong theme. The visualization uses immutable `WORKSPACE_THEME_DARK` and `WORKSPACE_THEME_LIGHT` matrices, and a `MutationObserver` rebuilds the network and SVG overlay after theme changes while restoring the prior viewport and zoom. `templates/help.html` intentionally has no such script or other `<script>` tag (`test_help_requires_authentication_and_renders_user_guide` asserts the guide page ships script-free).
 
@@ -142,10 +149,36 @@ The header profile module uses `#userProfileModule` and `#profilePopoverCard`. `
 ## Tests and validation
 
 ```powershell
+# Python/API and static checks
 py -3 ingest.py validate
 py -3 -m pytest -p no:cacheprovider
+node --check static\js\core.js
+node --check static\js\tree-data.js
+node --check static\js\tree-layout.js
+node --check static\js\tree-edges.js
+node --check static\js\tree-animation.js
+node --check static\js\tree-lineage.js
+node --check static\js\tree-interactions.js
+node --check static\js\tree-lifecycle.js
+node --check static\js\panel-forms.js
+node --check static\js\panel-controller.js
+node --check static\js\admin-ui.js
+node --check static\js\admin-controller.js
+node --check static\js\export-utils.js
+node --check static\js\account-ui.js
 node --check static\app.js
+
+# Browser smoke tests; run the server separately on port 8080 first
+npm install
+$env:FAMILY_VAULT_TEST_USERNAME = "admin"
+$env:FAMILY_VAULT_TEST_PASSWORD = "use-a-local-test-password"
+npm run test:browser
 ```
+
+Browser tests use `FAMILY_VAULT_BASE_URL` when set, default to `http://127.0.0.1:8080`, and never start or modify the server. Keep credentials in environment variables, not test files or source control.
+
+The legacy facades (`server.py`, `data_store.py`, `backup.py`, `gedcom.py`, and `ingest.py`) must remain importable and executable while migration is in progress. Route paths, CLI flags, YAML/SQLite schemas, backup bytes, GEDCOM output, browser storage keys, and public JavaScript handler names are compatibility contracts.
+
 
 GitHub Actions runs these checks only; it does not deploy family data publicly.
 

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from copy import deepcopy
 
@@ -153,3 +153,5 @@ def test_validate_family_rejects_duplicate_tags_case_insensitive(valid_family):
 
     with pytest.raises(data_store.DataValidationError, match="duplicate tags"):
         data_store.validate_family(valid_family)
+
+

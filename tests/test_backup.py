@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import sqlite3
 
@@ -50,3 +50,5 @@ def test_git_backup_without_repository_keeps_local_snapshot(app):
 
     assert "initialize Git" in message
     assert encrypted.exists()
+
+
