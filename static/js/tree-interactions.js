@@ -26,7 +26,7 @@
     if (personById.has(nodeId)) {
       lastPointerNodeId = nodeId;
       applyLineageHover(nodeId, people, unions, parentsOf);
-    } else if (!isShiftPressed && state.lineageHover) clearLineageHover();
+    } else if (!isShiftPressed() && state.lineageHover) clearLineageHover();
   });
   network.on('afterDrawing', () => animateConnections());
   network.on('zoom', () => animateConnections());

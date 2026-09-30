@@ -38,9 +38,18 @@ function hide(id) {
 
 // ---------- Theme ----------
 function applyTheme(theme) {
-  document.documentElement.setAttribute('data-theme', theme);
-  localStorage.setItem('familyVaultTheme', theme);
-  $('themeToggle').textContent = theme === 'dark' ? '\u{1F319}' : '\u2600\uFE0F';
+  const isLight = theme === 'light';
+  document.documentElement.setAttribute('data-theme', isLight ? 'light' : 'dark');
+  const themeMeta = document.querySelector('meta[name="theme-color"]');
+  if (themeMeta) themeMeta.setAttribute('content', isLight ? '#fdfbf7' : '#06070f');
+  localStorage.setItem('familyVaultTheme', isLight ? 'light' : 'dark');
+  const toggle = $('themeToggle');
+  if (toggle) {
+    toggle.setAttribute('aria-checked', String(isLight));
+    toggle.setAttribute('aria-label', isLight ? 'Switch to dark theme' : 'Switch to light theme');
+    const icon = toggle.querySelector('.theme-switch-icon');
+    if (icon) icon.textContent = isLight ? '\u2600' : '\u263E';
+  }
 }
 
 function toggleTheme() {
@@ -247,7 +256,7 @@ function renderTree() {
   const nodes = [];
   const edges = [];
   const labeledEdge = edge => ({...edge, font: {size: 11, color: document.documentElement.dataset.theme === 'light' ? '#706357' : '#94a3b8', strokeWidth: 3, strokeColor: document.documentElement.dataset.theme === 'light' ? '#fdfbf7' : '#0f172a', align: 'horizontal'}});
-  const names = ids => ids.map(id => displayName(personById.get(id))).filter(Boolean);
+  const names = ids => ids.map(id => personById.get(id)).filter(Boolean).map(displayName).filter(Boolean);
   const relationshipTooltip = personId => {
     const parentIds = parentsOf.get(personId) || [];
     const childIds = [...parentsOf.entries()].filter(([, parentIdsForChild]) => parentIdsForChild.includes(personId)).map(([childId]) => childId);

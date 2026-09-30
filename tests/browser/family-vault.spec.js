@@ -19,13 +19,13 @@ test('authenticated tree renders without runtime errors', async ({page}) => {
   expect(errors).toEqual([]);
 });
 
-test('theme toggle updates theme and icon', async ({page}) => {
-  const toggle = page.getByRole('button', {name: 'Toggle light and dark theme'});
+test('theme toggle updates theme and switch state', async ({page}) => {
+  const toggle = page.getByRole('switch', {name: /theme/i});
   const before = await page.locator('html').getAttribute('data-theme');
   await toggle.click();
   const after = await page.locator('html').getAttribute('data-theme');
   expect(after).not.toBe(before);
-  await expect(toggle).toHaveText(after === 'light' ? '☀️' : '🌙');
+  await expect(toggle).toHaveAttribute('aria-checked', String(after === 'light'));
 });
 
 test('search highlights a matching family member', async ({page}) => {

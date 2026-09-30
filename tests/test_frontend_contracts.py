@@ -35,14 +35,16 @@ def test_tree_interaction_modules_keep_browser_event_contracts():
     assert "isShiftPressed()" in source
 
 
-def test_theme_toggle_uses_encoding_safe_unicode_icons():
+def test_theme_toggle_uses_accessible_switch_markup():
     app = read_frontend("../static/app.js")
     shell = (ROOT / "templates" / "shell.html").read_text(encoding="utf-8")
 
-    assert "\\u{1F319}" in app
-    assert "\\u2600\\uFE0F" in app
-    assert "&#x1F319;" in shell
-    assert "Ã°Å¸" not in app + shell
+    assert 'role="switch"' in shell
+    assert 'aria-checked="false"' in shell
+    assert "theme-switch-thumb" in shell
+    assert "theme-switch-scene" in shell
+    assert "setAttribute('aria-checked', String(isLight))" in app
+    assert "theme-switch-icon" in app
 
 
 def test_panel_and_admin_controllers_keep_form_submission_contracts():
